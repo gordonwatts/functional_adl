@@ -1,4 +1,5 @@
-# Helpers for LINQ operators and lambda
+# Helpers for LINQ operators and LINQ expressions in AST form.
+# Utility routines to manipulate LINQ expressions.
 import adl_func_client.query_ast as query_ast
 import ast
 
@@ -26,8 +27,7 @@ def parse_as_ast (ast_source):
 
 class replace_LINQ_operators(ast.NodeTransformer):
     r'''
-    We are called on expressions that are parsed in-line, and when we see calls to things like Select, we replace them
-    with the AST entries appropriate.
+    A python 3 AST tranformer to replace function calls in the AST that are actually LINQ operators.
 
     ObjectStream has methods called Select and SelectMany. When they are called, they build up the AST tree. But they do that
     by creating Select and SelectMany, etc., ast nodes. When we parse a lambda passed as text, that does not happen. This
