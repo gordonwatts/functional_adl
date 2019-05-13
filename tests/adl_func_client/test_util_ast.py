@@ -1,7 +1,7 @@
 # Tests for ast_util.py
 
 # Now the real test code starts.
-from adl_func_client.ast_util import lambda_is_identity, lambda_test, lambda_is_true
+from adl_func_client.util_ast import lambda_is_identity, lambda_test, lambda_is_true
 import ast
 
 # Identity

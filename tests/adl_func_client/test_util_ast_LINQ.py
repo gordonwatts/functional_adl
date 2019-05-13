@@ -3,7 +3,7 @@
 # from clientlib.function_simplifier import simplify_chained_calls, convolute
 from adl_func_client.util_ast_LINQ import replace_LINQ_operators
 # from clientlib.ast_util import lambda_unwrap
-from tests.adl_func_client.test_ast_util import *
+# from tests.adl_func_client.test_util_ast import *
 import ast
 # import copy
 
