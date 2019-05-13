@@ -6,7 +6,7 @@ This is designed to run in a container.
 
 There are several python packages that are built and installed here:
 
-- ADLBackend - back end python processor that does the heavy lifting.
-- ADLFront - tools for an analysis user
+- adl_func_back - back end python processor that does the heavy lifting.
+- adl_func_client - tools for an analysis user
 
 Based on the ROOT to LINQ project.
