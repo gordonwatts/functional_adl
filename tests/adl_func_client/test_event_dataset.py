@@ -1,6 +1,6 @@
 # Test that the event dataset works correctly.
 
-from functional_events.event_dataset import EventDataset
+from adl_func_client.functional_events.event_dataset import EventDataset
 
 def test_good_file_url():
     _ = EventDataset('file://test.root')
