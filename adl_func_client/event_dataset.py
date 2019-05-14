@@ -1,6 +1,7 @@
 # Event dataset
 from urllib import parse
 from adl_func_client.ObjectStream import ObjectStream
+import ast
 
 class EventDatasetURLException (BaseException):
     '''
@@ -9,7 +10,7 @@ class EventDatasetURLException (BaseException):
     def __init__ (self, message):
         BaseException.__init__(self, message)
 
-class EventDataset(ObjectStream):
+class EventDataset(ObjectStream, ast.AST):
     r'''
     The URL for an event dataset. 
     '''

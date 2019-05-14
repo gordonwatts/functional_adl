@@ -19,4 +19,24 @@ def test_find_EventDataSet_none():
     except:
         pass
 
+def test_find_EventDataset_Select():
+    a = EventDataset("file://dude.root") \
+        .Select("lambda x: x") \
+        .value(executor=lambda a: a)
 
+    assert "file://dude.root" == find_dataset(a).url
+
+def test_find_EventDataset_SelectMany():
+    a = EventDataset("file://dude.root") \
+        .SelectMany("lambda x: x") \
+        .value(executor=lambda a: a)
+
+    assert "file://dude.root" == find_dataset(a).url
+
+def test_find_EventDataset_Select_and_Many():
+    a = EventDataset("file://dude.root") \
+        .Select("lambda x: x") \
+        .SelectMany("lambda x: x") \
+        .value(executor=lambda a: a)
+
+    assert "file://dude.root" == find_dataset(a).url
