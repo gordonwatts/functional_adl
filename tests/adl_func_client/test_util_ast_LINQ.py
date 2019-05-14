@@ -8,13 +8,15 @@ import ast
 # import copy
 from adl_func_client.util_ast_LINQ import parse_as_ast
 from adl_func_client.util_ast import lambda_unwrap
-from tests.util_debug_ast import pretty_print
+
+from tests.util_debug_ast import pretty_print, normalize_ast
 import ast
 
-# def get_ast(ast_in):
-#     a_source = ast_in if isinstance(ast_in, ast.AST) else ast.parse(ast_in)
-#     a_source_linq = replace_LINQ_operators().visit(a_source)
-#     return a_source_linq    
+def get_ast(ast_in):
+    'Helper func that returns an ast.'
+    a_source = ast_in if isinstance(ast_in, ast.AST) else ast.parse(ast_in)
+    a_source_linq = replace_LINQ_operators().visit(a_source)
+    return a_source_linq    
 
 def util_process(ast_in, ast_out):
     'Make sure ast in is the same as out after running through - this is a utility routine for the harness'
@@ -33,17 +35,15 @@ def util_process(ast_in, ast_out):
 
     assert s_updated == s_expected
 
-# Now the real test code starts.
-def test_First_after_select():
-    util_process("event.Select(lambda x: x.jets).Select(lambda y: y.First())", "event.Select(lambda x: x.jets.First())")
-
-def test_First_after_sequence():
-    util_process("event.Select(lambda x: (x.jets, x.tracks)).Select(lambda y: y[0].First())", "event.Select(lambda x: x.jets.First())")
-
 def test_First_in_func():
     a = get_ast("abs(j.First())")
     ast_s = ast.dump(a)
     assert "First(source" in ast_s
+
+def test_Select_in_func():
+    a = get_ast("jets.Select(lambda x: j.pt())")
+    ast_s = ast.dump(a)
+    assert "Select(source" in ast_s
 
 
 #########################

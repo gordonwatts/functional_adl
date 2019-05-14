@@ -71,3 +71,48 @@ def pretty_print (ast):
     pretty_print_visitor(stdout).visit(ast)
     stdout.write("\n")
 
+class normalize_ast(ast.NodeTransformer):
+    '''
+    The AST's can have the same symantec meaning, but not the same text, so the string compare that happens as part of these tests fail. The code
+    here's job is to make the ast produced by the local code look like the python code.
+    '''
+    def __init__ (self):
+        self._arg_index = 0
+        self._arg_transformer = []
+
+    def push_stack_frame(self):
+        self._arg_transformer.append({})
+
+    def pop_stack_frame(self):
+        del self._arg_transformer[-1]
+
+    def new_arg(self):
+        'Generate a new argument, in a nice order'
+        old_arg = self._arg_index
+        self._arg_index += 1
+        return "t_arg_{0}".format(old_arg)
+
+    def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:
+        'Arguments need a uniform naming'
+        a_mapping = [(a.arg, self.new_arg()) for a in node.args.args]
+
+        # Remap everything that is inside this guy
+        self.push_stack_frame()
+        for m in a_mapping:
+            self._arg_transformer[-1][m[0]] = m[1]
+        body = self.visit(node.body)
+        self.pop_stack_frame()
+
+        # Rebuild the lambda guy
+        args = [ast.arg(arg=m[1]) for m in a_mapping]
+        return ast.Lambda(args=args, body=body)
+
+    def lookup_name(self, name: str) -> str:
+        for frames in reversed(self._arg_transformer):
+            if name in frames:
+                return frames[name]
+        return name
+
+    def visit_Name(self, node: ast.Name):
+        return self.lookup_name(node.id)
+

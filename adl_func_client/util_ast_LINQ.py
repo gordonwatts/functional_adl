@@ -3,7 +3,7 @@
 import adl_func_client.query_ast as query_ast
 from adl_func_client.util_ast import lambda_unwrap
 import ast
-from typing import Union
+from typing import Union, Optional
 
 
 def parse_as_ast (ast_source: Union[str,ast.AST]) -> ast.Lambda:
@@ -39,11 +39,11 @@ class replace_LINQ_operators(ast.NodeTransformer):
     NodeTransformer does that replacement in-place.
     '''
 
-    def visit_Call(self, node):
+    def visit_Call(self, node: ast.Call) -> Optional[ast.AST]:
         '''Look for LINQ type calls and make a replacement with the appropriate AST entry
         TODO: Make sure this is recursive properly!
         '''
-        if type(node.func) is ast.Attribute:
+        if isinstance(node.func, ast.Attribute):
             func_name =  node.func.attr
             if func_name == "Select":
                 source = self.visit(node.func.value)
