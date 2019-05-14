@@ -3,7 +3,7 @@ import ast
 
 # TODO: lambda_unwrap should only be used in the parse_ast code, no where else - we should be moving
 # Lambda ASTs around, not Module AST's.
-def lambda_unwrap(l):
+def lambda_unwrap(l: ast.AST) -> ast.Lambda:
     '''Given an AST of a lambda node, return the lambda node. If it is burried in a module, then unwrap it first
     Python, when it parses an module, returns the lambda wrapped in a `Module` AST node. This gets rid of it, but
     is also flexible.
