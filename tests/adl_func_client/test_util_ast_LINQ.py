@@ -51,7 +51,7 @@ def test_Select_in_func():
 
 def test_parse_as_ast_none():
     try:
-        parse_as_ast(None)
+        parse_as_ast("")
         assert False
     except:
         pass
