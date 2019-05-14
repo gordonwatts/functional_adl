@@ -1,8 +1,9 @@
 # An Object stream represents a stream of objects, floats, integers, etc.
 import adl_func_client.query_ast as query_ast
 from adl_func_client.query_result_asts import ResultTTree
-# from clientlib.find_LINQ_operators import parse_ast
+from adl_func_client.util_ast_LINQ import parse_as_ast
 # import ast
+from typing import Any
 
 
 class ObjectStream:
@@ -32,7 +33,7 @@ class ObjectStream:
         Returns:
             A new ObjectStream.
         """
-        return ObjectStream(query_ast.SelectMany(self._ast, parse_ast(func)))
+        return ObjectStream(query_ast.SelectMany(self._ast, parse_as_ast(func)))
 
     def Select(self, f):
         r"""
@@ -45,7 +46,7 @@ class ObjectStream:
         Returns:
             A new ObjectStream of the transformed elements.
         """
-        return ObjectStream(query_ast.Select(self._ast, parse_ast(f)))
+        return ObjectStream(query_ast.Select(self._ast, parse_as_ast(f)))
 
     def Where(self, filter):
         r'''
@@ -57,7 +58,7 @@ class ObjectStream:
         Returns:
             A new ObjectStream that contains only elements that pass the filter function
         '''
-        return ObjectStream(query_ast.Where(self._ast, parse_ast(filter)))
+        return ObjectStream(query_ast.Where(self._ast, parse_as_ast(filter)))
 
     # def AsPandasDF(self, columns=[]):
     #     r"""
@@ -101,10 +102,20 @@ class ObjectStream:
     #     '''
     #     return ObjectStream(resultAwkwardArray(self._ast, columns))
 
-    # def value(self):
-    #     r"""
-    #     Trigger the evaluation of the AST.
-    #     """
+    def value(self, executor = None) -> Any:
+        r"""
+        Trigger the evaluation of the AST. Returns the results of the execution to the caller.
+
+        Args:
+            executor:       A function that when called with the ast will return the result. If
+                            None, then use the default executor.
+
+        Returns:
+            Whatever the executor evaluates to.
+        """
+        if executor is not None:
+            return executor(self._ast)
+        raise BaseException("Not implemented yet")
     #     # Find the executor
     #     exe_finder = find_executor()
     #     exe_finder.visit(self._ast)
