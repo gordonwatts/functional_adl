@@ -1,7 +1,7 @@
 # Some ast utils
 import ast
 
-# TODO: lambda_unwrap should only be used in the parse_ast code, no where else - we shoudl be moving
+# TODO: lambda_unwrap should only be used in the parse_ast code, no where else - we should be moving
 # Lambda ASTs around, not Module AST's.
 def lambda_unwrap(l):
     '''Given an AST of a lambda node, return the lambda node. If it is burried in a module, then unwrap it first

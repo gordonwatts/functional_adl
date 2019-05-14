@@ -6,6 +6,10 @@ from adl_func_client.util_ast_LINQ import replace_LINQ_operators
 # from tests.adl_func_client.test_util_ast import *
 import ast
 # import copy
+from adl_func_client.util_ast_LINQ import parse_as_ast
+from adl_func_client.util_ast import lambda_unwrap
+from tests.util_debug_ast import pretty_print
+import ast
 
 # def get_ast(ast_in):
 #     a_source = ast_in if isinstance(ast_in, ast.AST) else ast.parse(ast_in)
@@ -33,10 +37,44 @@ def util_process(ast_in, ast_out):
 def test_First_after_select():
     util_process("event.Select(lambda x: x.jets).Select(lambda y: y.First())", "event.Select(lambda x: x.jets.First())")
 
-# def test_First_after_sequence():
-#     util_process("event.Select(lambda x: (x.jets, x.tracks)).Select(lambda y: y[0].First())", "event.Select(lambda x: x.jets.First())")
+def test_First_after_sequence():
+    util_process("event.Select(lambda x: (x.jets, x.tracks)).Select(lambda y: y[0].First())", "event.Select(lambda x: x.jets.First())")
 
-# def test_First_in_func():
-#     a = get_ast("abs(j.First())")
-#     ast_s = ast.dump(a)
-#     assert "First(source" in ast_s
+def test_First_in_func():
+    a = get_ast("abs(j.First())")
+    ast_s = ast.dump(a)
+    assert "First(source" in ast_s
+
+
+#########################
+# Test the util_ast_LINQ functionality
+
+def test_parse_as_ast_none():
+    try:
+        parse_as_ast(None)
+        assert False
+    except:
+        pass
+
+def test_parse_as_ast_good_text():
+    r = parse_as_ast("lambda x: x+1")
+    assert isinstance(r, ast.Lambda)
+    s = ast.dump(r)
+    assert "op=Add" in s
+
+def test_parse_as_ast_bad_text():
+    try:
+        parse_as_ast("x+1")
+        assert False
+    except:
+        pass
+
+def test_parse_as_ast_wrapped_lambda():
+    l = ast.parse("lambda x: x + 1")
+    r = parse_as_ast(l)
+    assert isinstance(r, ast.Lambda)
+
+def test_parse_as_ast_lambda():
+    l = lambda_unwrap(ast.parse("lambda x: x + 1"))
+    r = parse_as_ast(l)
+    assert isinstance(r, ast.Lambda)
