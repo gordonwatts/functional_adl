@@ -1,8 +1,8 @@
 # Code to work with the various types of data the executor is going to have to
 # return to the front end.
 
-from cpplib.cpp_representation import cpp_rep_base
-from cpplib.cpp_vars import unique_name
+from adl_func_backend.cpplib.cpp_representation import cpp_rep_base
+from adl_func_backend.cpplib.cpp_vars import unique_name
 from collections import namedtuple
 import pandas as pd
 import uproot

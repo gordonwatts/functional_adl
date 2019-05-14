@@ -1,18 +1,18 @@
 # Executor and code for the ATLAS xAOD input files
-from xAODlib.generated_code import generated_code, scope_is_deeper
-import xAODlib.statement as statement
-from clientlib.ast_util import lambda_assure, lambda_body, lambda_unwrap
-import xAODlib.AtlasEventStream
-from cpplib.cpp_vars import unique_name
-import cpplib.cpp_ast as cpp_ast
-from cpplib.cpp_representation import cpp_variable, cpp_collection, cpp_expression, cpp_tuple
-import xAODlib.result_handlers as rh
-import clientlib.query_result_asts as query_result_asts
+# from xAODlib.generated_code import generated_code, scope_is_deeper
+# import xAODlib.statement as statement
+# from clientlib.ast_util import lambda_assure, lambda_body, lambda_unwrap
+# import xAODlib.AtlasEventStream
+# from cpplib.cpp_vars import unique_name
+# import cpplib.cpp_ast as cpp_ast
+# from cpplib.cpp_representation import cpp_variable, cpp_collection, cpp_expression, cpp_tuple
+import adl_func_backend.xAODlib.result_handlers as rh
+# import clientlib.query_result_asts as query_result_asts
 
-from clientlib.tuple_simplifier import remove_tuple_subscripts
-from clientlib.function_simplifier import simplify_chained_calls
-from clientlib.aggregate_shortcuts import aggregate_node_transformer
-from cpplib.cpp_functions import find_known_functions, function_ast
+# from clientlib.tuple_simplifier import remove_tuple_subscripts
+# from clientlib.function_simplifier import simplify_chained_calls
+# from clientlib.aggregate_shortcuts import aggregate_node_transformer
+# from cpplib.cpp_functions import find_known_functions, function_ast
 
 import ast
 import tempfile
@@ -20,7 +20,7 @@ from shutil import copyfile
 import os
 import sys
 from urllib.parse import urlparse
-import jinja2
+# import jinja2
 from copy import copy
 
 # Convert between Python comparisons and C++.

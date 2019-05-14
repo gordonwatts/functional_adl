@@ -2,8 +2,8 @@
 # This is an abstract class. Almost everyone is going to have to
 # implement one.
 #
-import xAODlib.statement as statement
-from cpplib.cpp_vars import unique_name
+import adl_func_backend.xAODlib.statement as statement
+from adl_func_backend.cpplib.cpp_vars import unique_name
 import ast
 
 class cpp_rep_base:

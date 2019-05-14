@@ -1,6 +1,6 @@
 # A few tests on the LINQ ast funcitonality
 from adl_func_client.event_dataset import EventDataset
-from adl_func_backend.util_ast_LINQ import find_dataset
+from adl_func_backend.util_LINQ import find_dataset
 import ast
 
 

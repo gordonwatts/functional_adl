@@ -1,12 +1,14 @@
 # Tests that make sure the xaod executor is working correctly
 from adl_func_client.event_dataset import EventDataset
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
+from adl_func_backend.util_LINQ import find_dataset
 import ast
 
 
 # An executor that will run the xAOD infrastructure. This would be defaulted for the actual user.
 def xaod_process_ast(a: ast.AST):
-    exe = atlas_xaod_executor(None)
+    file = find_dataset(a)
+    exe = atlas_xaod_executor(file.url)
     return exe.evaluate(exe.apply_ast_transformations(ast))
 
 def test_simple_query_run_rootfile():
@@ -15,7 +17,7 @@ def test_simple_query_run_rootfile():
         .SelectMany("lambda e: e.Jets('AntiKt4EMTopoJets')") \
         .Select("lambda j: j.pt()") \
         .AsROOTTTree("output.root", "analysis", columns=['JetPt']) \
-        .value()
+        .value(executor=xaod_process_ast)
     
     assert rf is not None
     # Check the file comes back ok.
