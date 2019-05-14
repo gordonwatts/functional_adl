@@ -1,5 +1,5 @@
 # Hold onto the generated code
-from xAODlib.statement import block
+from adl_func_backend.xAODlib.statement import block
 
 def scope_is_deeper(s1, s2):
     '''Return true if scope `s2` is deeper than scope `s`.

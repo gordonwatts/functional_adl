@@ -1,8 +1,8 @@
 # Collected code to get collections from the event object
-import cpplib.cpp_ast as cpp_ast
+import adl_func_backend.cpplib.cpp_ast as cpp_ast
+from adl_func_backend.cpplib.cpp_vars import unique_name
+from adl_func_backend.cpplib.cpp_representation import cpp_collection, cpp_variable
 import ast
-from cpplib.cpp_vars import unique_name
-from cpplib.cpp_representation import cpp_collection, cpp_variable
 
 
 # all the collections types that are available. This is required because C++

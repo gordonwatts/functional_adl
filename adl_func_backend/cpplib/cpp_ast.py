@@ -2,9 +2,9 @@
 #
 # This is one mechanism to allow for a leaky abstraction.
 import ast
-from cpplib.cpp_vars import unique_name
-from cpplib.cpp_representation import cpp_expression
-import xAODlib.statement as statements
+from adl_func_backend.cpplib.cpp_vars import unique_name
+from adl_func_backend.cpplib.cpp_representation import cpp_expression
+import adl_func_backend.xAODlib.statement as statements
 
 # The list of methods and the re-write functions for them. Each rewrite function
 # is called with the Call node, which includes arguments, names, etc. It should return
