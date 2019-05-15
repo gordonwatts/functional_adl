@@ -113,8 +113,12 @@ class ObjectStream:
         Returns:
             Whatever the executor evaluates to.
         """
+        # See if we are given an executor
         if executor is not None:
             return executor(self._ast)
+
+
+        # Ok - if we got here then we can't figure out how to run.
         raise BaseException("Not implemented yet")
     #     # Find the executor
     #     exe_finder = find_executor()

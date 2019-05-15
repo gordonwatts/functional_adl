@@ -27,7 +27,7 @@ class EventDataset(ObjectStream, ast.AST):
         '''
         self.url = url
         self._ast = self
-        self._fields = ('url')
+        self._fields = ('url',)
 
         # Make sure we can parse this URL. We don't, at some level, care about the actual contents.
         r = parse.urlparse(url)

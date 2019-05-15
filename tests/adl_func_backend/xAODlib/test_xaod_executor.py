@@ -4,8 +4,8 @@ from adl_func_client.util_ast_LINQ import replace_LINQ_operators
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 from adl_func_backend.util_LINQ import find_dataset
 from adl_func_backend.xAODlib.util_scope import top_level_scope
-import adl_func_backend.cpplib.cpp_representation as crep
 from tests.adl_func_backend.xAODlib.utils_for_testing import *
+from adl_func_client.event_dataset import EventDataset
 import ast
 
 class Atlas_xAOD_File_Type:
@@ -36,25 +36,24 @@ class Atlas_xAOD_File_Type:
 #     # Check the file comes back ok.
 #     assert False
 
-
 def test_per_event_item():
-    r=MyEventStream().Select('lambda e: e.EventInfo("EventInfo").runNumber()').AsROOTTTree('root.root', 'analysis', 'RunNumber').value()
+    r=EventDataset("file://root.root").Select('lambda e: e.EventInfo("EventInfo").runNumber()').AsROOTTTree('root.root', 'analysis', 'RunNumber').value(executor=exe_for_test)
     vs = r.QueryVisitor._gc._class_vars
     assert 1 == len(vs)
     assert "double" == str(vs[0].cpp_type())
 
 def test_func_sin_call():
-    MyEventStream().Select('lambda e: sin(e.EventInfo("EventInfo").runNumber())').AsROOTFile('RunNumber').value()
+    EventDataset("file://root.root").Select('lambda e: sin(e.EventInfo("EventInfo").runNumber())').AsROOTFile('RunNumber').value(executor=exe_for_test)
 
 def test_per_jet_item_as_call():
-    MyEventStream().SelectMany('lambda e: e.Jets("bogus")').Select('lambda j: j.pt()').AsROOTFile('dude').value()
+    EventDataset("file://root.root").SelectMany('lambda e: e.Jets("bogus")').Select('lambda j: j.pt()').AsROOTFile('dude').value(executor=exe_for_test)
 
 def test_Select_is_an_array_with_where():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt()/1000.0).Where(lambda jpt: jpt > 10.0)') \
         .AsPandasDF('JetPts') \
-        .value()
+        .value(executor=exe_for_test)
     # Check to see if there mention of push_back anywhere.
     lines = get_lines_of_code(r)
     print_lines(lines)
@@ -65,10 +64,10 @@ def test_Select_is_an_array_with_where():
 
 def test_Select_is_an_array():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt())') \
         .AsPandasDF('JetPts') \
-        .value()
+        .value(executor=exe_for_test)
     # Check to see if there mention of push_back anywhere.
     lines = get_lines_of_code(r)
     print_lines(lines)
@@ -79,10 +78,10 @@ def test_Select_is_an_array():
 
 def test_Select_is_not_an_array():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
         .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt())') \
         .AsPandasDF('JetPts') \
-        .value()
+        .value(executor=exe_for_test)
     # Check to see if there mention of push_back anywhere.
     lines = get_lines_of_code(r)
     print_lines(lines)
@@ -93,10 +92,10 @@ def test_Select_is_not_an_array():
 
 def test_Select_Multiple_arrays():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: (e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt()/1000.0),e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.eta()))') \
         .AsPandasDF(('JetPts','JetEta')) \
-        .value()
+        .value(executor=exe_for_test)
     # Check to see if there mention of push_back anywhere.
     lines = get_lines_of_code(r)
     print_lines(lines)
@@ -107,11 +106,11 @@ def test_Select_Multiple_arrays():
 
 def test_Select_Multiple_arrays_2_step():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets")') \
         .Select('lambda jets: (jets.Select(lambda j: j.pt()/1000.0),jets.Select(lambda j: j.eta()))') \
         .AsPandasDF(('JetPts','JetEta')) \
-        .value()
+        .value(executor=exe_for_test)
     # Check to see if there mention of push_back anywhere.
     lines = get_lines_of_code(r)
     print_lines(lines)
@@ -125,19 +124,19 @@ def test_Select_Multiple_arrays_2_step():
 def test_Select_of_2D_array_fails():
     # The following statement should be a straight sequence, not an array.
     try:
-        MyEventStream() \
+        EventDataset("file://root.root") \
             .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: (j.pt()/1000.0, j.eta()))') \
             .AsPandasDF(['JetInfo']) \
-            .value()
+            .value(executor=exe_for_test)
     except BaseException as e:
         assert "Nested data structures" in str(e)
 
 def test_SelectMany_of_tuple_is_not_array():
     # The following statement should be a straight sequence, not an array.
-    r = MyEventStream() \
+    r = EventDataset("file://root.root") \
             .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: (j.pt()/1000.0, j.eta()))') \
             .AsPandasDF(['JetPts', 'JetEta']) \
-            .value()
+            .value(executor=exe_for_test)
     lines = get_lines_of_code(r)
     print_lines(lines)
     assert 0==["push_back" in l for l in lines].count(True)
@@ -149,7 +148,7 @@ def test_generate_binary_operators():
     # Make sure the binary operators work correctly - that they don't cause a crash in generation.
     ops = ['+','-','*','/']
     for o in ops:
-        MyEventStream() \
+        EventDataset("file://root.root") \
             .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt(){0}1)'.format(o)) \
             .AsPandasDF(['JetInfo']) \
-            .value()
+            .value(executor=exe_for_test)

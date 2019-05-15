@@ -114,6 +114,8 @@ class cpp_value(cpp_rep_base):
 
     def is_pointer(self):
         'Return true if this type is a pointer'
+        if self._cpp_type is None:
+            raise BaseException(f"Attempt to get the type of a typeless C++ expression '{self._expression}''.")
         return self._cpp_type.is_pointer()
 
     def as_cpp(self):

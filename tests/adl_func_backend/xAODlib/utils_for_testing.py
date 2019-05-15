@@ -4,7 +4,7 @@
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 from adl_func_backend.cpplib.cpp_representation import cpp_variable, cpp_sequence
 from adl_func_backend.xAODlib.util_scope import top_level_scope
-from adl_func_client.ObjectStream import ObjectStream
+from adl_func_backend.util_LINQ import find_dataset
 import ast
 
 
@@ -20,15 +20,17 @@ class dummy_executor(atlas_xaod_executor):
         self.ResultRep = result_rep
         return self
 
-# Define a dataset we can use
-class test_stream(ast.AST):
-    def __init__ (self):
-        iter = cpp_variable("bogus-do-not-use", scope=top_level_scope(), cpp_type=None)
-        self.rep = cpp_sequence(iter, iter)
-        self.rep._ast = self # So that we get used properly when passed on.
+def exe_for_test(a: ast.AST):
+    'Dummy executor that will return the ast properly rendered'
+    # Setup the rep for this filter
+    file = find_dataset(a)
+    iterator = cpp_variable("bogus-do-not-use", top_level_scope(), cpp_type=None)
+    file.rep = cpp_sequence(iterator, iterator)
 
-    def get_executor(self):
-        return dummy_executor()
+    # Use the dummy executor to process this, and return it.
+    exe = dummy_executor()
+    exe.evaluate(exe.apply_ast_transformations(a))
+    return exe
 
 class dummy_emitter:
     def __init__ (self):
@@ -48,10 +50,6 @@ class dummy_emitter:
     def process (self, func):
         func(self)
         return self
-        
-class MyEventStream(ObjectStream):
-    def __init__ (self):
-        ObjectStream.__init__(self, test_stream())
 
 def get_lines_of_code(executor):
     'Return all lines of code'

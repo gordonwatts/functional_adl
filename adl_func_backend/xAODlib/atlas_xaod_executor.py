@@ -16,6 +16,11 @@ from adl_func_backend.ast.function_simplifier import simplify_chained_calls
 from adl_func_backend.ast.aggregate_shortcuts import aggregate_node_transformer
 from adl_func_backend.cpplib.cpp_functions import find_known_functions, FunctionAST
 
+# Bring in all the machinery to process xAOD files. This adds
+# extra stuff to the processing engine to special case things.
+import adl_func_backend.xAODlib.Jets
+import adl_func_backend.xAODlib.EventCollections
+
 import ast
 import tempfile
 from shutil import copyfile
@@ -204,7 +209,7 @@ class query_ast_visitor(ast.NodeVisitor):
         it comes time for a new type, this is where it should go.
         '''
         element_type = rep.cpp_type().element_type()
-        iterator_value = crep.cpp_value(unique_name("i_obj"), top_level_scope(), element_type)
+        iterator_value = crep.cpp_value(unique_name("i_obj"), None, element_type)
         l = statement.loop(iterator_value, crep.dereference_var(rep))
         self._gc.add_statement(l)
         iterator_value.reset_scope(self._gc.current_scope())
@@ -284,6 +289,8 @@ class query_ast_visitor(ast.NodeVisitor):
         agg_lambda = node.args[0]
 
         # Get the sequence we are calling against and the accumulator
+        if not isinstance(node.func, ast.Attribute):
+            raise BaseException("Wrong type of function")
         seq = self.as_sequence(node.func.value)
         accumulator, accumulator_scope = self.create_accumulator(seq)
 
@@ -330,6 +337,8 @@ class query_ast_visitor(ast.NodeVisitor):
         init_val = self.get_rep(node.args[0])
 
         # Get the sequence we are calling against and the accumulator
+        if not isinstance(node.func, ast.Attribute):
+            raise BaseException("Wrong type of function")
         seq = self.as_sequence(node.func.value)
         accumulator, accumulator_scope = self.create_accumulator(seq, initial_value=init_val, acc_type=init_val.cpp_type())
 
@@ -633,7 +642,7 @@ class query_ast_visitor(ast.NodeVisitor):
         node.rep = crep.cpp_value('"{0}"'.format(node.s), self._gc.current_scope(), ctyp.terminal("string"))
         self._result = node.rep
 
-    def visit_resultTTree(self, node):
+    def visit_ResultTTree(self, node: query_result_asts.ResultTTree):
         '''This AST means we are taking an iterable and converting it to a ROOT file.
         '''
         # Get the representations for each variable. We expect some sort of structure
