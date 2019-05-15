@@ -1,5 +1,5 @@
 # Statements
-
+import adl_func_backend.cpplib.cpp_representation as crep
 
 class block:
     'This is a bock of statements surrounded by a scoping (like open close bracket, for loop, etc.)'
@@ -20,25 +20,28 @@ class block:
         'Render the block of code'
         e.add_line("{")
         for v in self._variables:
-            init_value = "" if not v.initial_value() else " ({0})".format(v.initial_value())
-            e.add_line("{0} {1}{2};".format(v.cpp_type(), v.name(), init_value))
+            init_value = "" if not isinstance(v,crep.cpp_variable) or not v.initial_value() else " ({0})".format(v.initial_value().as_cpp())
+            e.add_line("{0} {1}{2};".format(v.cpp_type(), v.as_cpp(), init_value))
         for s in self._statements:
             s.emit(e)
         e.add_line("}")
 
-
 class loop(block):
     'A for loop'
 
-    def __init__(self, collection_name, loop_variable):
+    def __init__(self, loop_var_rep: crep.cpp_value, collection_rep: crep.cpp_collection):
+        '''
+        Create a new implicit for loop statement. A new var is created, and the scope is set to
+        be the one down from here.
+        '''
         block.__init__(self)
-        self._collection_name = collection_name
-        self._loop_variable = loop_variable
+        self._collection = collection_rep
+        self._loop_variable = loop_var_rep
 
     def emit(self, e):
         'Emit a for loop enclosed by a block of code'
         e.add_line("for (auto {0} : {1})".format(
-            self._loop_variable, self._collection_name))
+            self._loop_variable.as_cpp(), self._collection.as_cpp()))
         block.emit(self, e)
 
 class iftest(block):

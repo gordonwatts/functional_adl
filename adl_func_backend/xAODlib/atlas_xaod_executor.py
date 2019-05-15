@@ -1,26 +1,35 @@
 # Executor and code for the ATLAS xAOD input files
-from adl_func_backend.xAODlib.generated_code import generated_code, scope_is_deeper
+from adl_func_backend.xAODlib.generated_code import generated_code
+from adl_func_backend.xAODlib.util_scope import deepest_scope, top_level_scope
 import adl_func_backend.xAODlib.statement as statement
-from adl_func_client.util_ast import lambda_assure, lambda_body, lambda_unwrap
+from adl_func_client.util_ast import lambda_unwrap
 from adl_func_backend.cpplib.cpp_vars import unique_name
 import adl_func_backend.cpplib.cpp_ast as cpp_ast
-from adl_func_backend.cpplib.cpp_representation import cpp_variable, cpp_collection, cpp_expression, cpp_tuple
+import adl_func_backend.cpplib.cpp_representation as crep
+import adl_func_backend.cpplib.cpp_types as ctyp
 import adl_func_backend.xAODlib.result_handlers as rh
 import adl_func_client.query_result_asts as query_result_asts
+from adl_func_backend.ast.call_stack import argument_stack, stack_frame
 
 from adl_func_backend.ast.tuple_simplifier import remove_tuple_subscripts
 from adl_func_backend.ast.function_simplifier import simplify_chained_calls
 from adl_func_backend.ast.aggregate_shortcuts import aggregate_node_transformer
-from adl_func_backend.cpplib.cpp_functions import find_known_functions, function_ast
+from adl_func_backend.cpplib.cpp_functions import find_known_functions, FunctionAST
 
 import ast
 import tempfile
 from shutil import copyfile
 import os
+import subprocess
 import sys
 from urllib.parse import urlparse
 import jinja2
 from copy import copy
+from typing import Union
+
+# Use this to turn on dumping of output and C++
+dump_cpp = False
+dump_running_log = True
 
 # Convert between Python comparisons and C++.
 # TODO: Fill out all possible ones
@@ -40,13 +49,57 @@ result_handlers = {
         rh.cpp_pandas_rep: rh.extract_pandas_result,
 }
 
-def type_of_rep(rep):
+def check_accumulator_type(t: ctyp.terminal):
+    'We can only deal with certain types for doing an accumulation. Make sure this is one.'
+    t_str = str(t)
+    return (t_str == "float") or (t_str == "double") or (t_str == "int")
+
+def guess_type_from_number(n):
+    if int(n) == n:
+        return ctyp.terminal("int")
+    return ctyp.terminal("double")
+
+def rep_is_collection(rep):
+    if isinstance(rep, crep.cpp_sequence):
+        return True
+    if isinstance(rep, crep.cpp_collection):
+        return True
+
+def get_ttree_type(rep):
+    'Looking at a rep, figure out how it should get stored in a tree'
+    if isinstance(rep, crep.cpp_sequence):
+        if not isinstance(rep.sequence_value(), crep.cpp_value):
+            raise BaseException("Nested data structures (2D arrays, etc.) in TTree's are not yet supported. Numbers or arrays of numbers only for now.")
+        return ctyp.collection(rep.sequence_value().cpp_type())
+    else:
+        return rep.cpp_type()
+
+def determine_type_mf(parent_type, function_name):
     '''
-    Return a float unless it is an iterable. Then it is a vector of float.
+    Determine the return type of the member function. Do our best to make
+    an intelligent case when we can.
+
+    parent_type:        the type of the parent
+    function_name:      the name of the function we are calling
     '''
-    if rep.is_iterable:
-        return "std::vector<float>"
-    return "float"
+    # If we don't know the type...
+    if parent_type is None:
+        raise BaseException("Internal Error: Trying to call member function for a type we do not know!")
+    # If we are doing one of the normal "terminals", then we can just bomb. This should not happen!
+
+    rtn_type = ctyp.method_type_info(str(parent_type), function_name)
+    if rtn_type is not None:
+        return rtn_type
+
+    # We didn't know it. Lets make a guess, and error out if we are clearly making a mistake.
+    base_types = ['double', 'float', 'int']
+    s_parent_type = str(parent_type)
+    if s_parent_type in base_types:
+        raise BaseException("Unable to call method '{0}' on type '{1}'.".format(function_name, str(parent_type)))
+    
+    # Ok - we give up. Return a double.
+    print ("Warning: assumping that the method '{0}.{1}(...)' has return type 'double'. Use cpp_types.add_method_type_info to suppress (or correct) this warning.".format(str(s_parent_type), function_name))
+    return ctyp.terminal('double')
 
 class query_ast_visitor(ast.NodeVisitor):
     r"""
@@ -59,7 +112,7 @@ class query_ast_visitor(ast.NodeVisitor):
         '''
         # Tracks the output of the code.
         self._gc = generated_code()
-        self._var_dict = {}
+        self._arg_stack = argument_stack()
         self._result = None
 
     def include_files(self):
@@ -100,14 +153,17 @@ class query_ast_visitor(ast.NodeVisitor):
         else:
             return ast.NodeVisitor.generic_visit(self, node)
 
-    def get_rep(self, node, use_generic_visit = False, reset_result = None, retain_scope = False):
+    def get_rep(self, node, use_generic_visit = False, reset_result = None, retain_scope = False) -> Union[crep.cpp_value, crep.cpp_sequence]:
         r'''Return the rep for the node. If it isn't set yet, then run our visit on it.
 
         node - The ast node to generate a representation for.
         use_generic_visit - if true do generic_visit rather than visit.
         reset_result - Reset the _result variable to this value if requested.
         retain_scope - If true, then the scope level will remain the same before and after the call.
+        TODO: Make sure all these special options are needed
         '''
+        # If this node already has a representation, then it has been
+        # processed and we do not need to do it again.
         if not hasattr(node, 'rep'):
             s = self._gc.current_scope() if retain_scope else None
             self.generic_visit(node) if use_generic_visit else self.visit(node)
@@ -118,52 +174,240 @@ class query_ast_visitor(ast.NodeVisitor):
         if reset_result is not None:
             self._result = reset_result
 
+        # If it still didn't work, this is an internal error. But make the error message a bit nicer.
+        if not hasattr(node, 'rep'):
+            raise BaseException('Internal Error: attempted to get C++ representation for AST note "{0}", but failed.'.format(ast.dump(node)))
         return node.rep
 
+    def get_rep_value(self, node, use_generic_visit = False, reset_result = None, retain_scope = False) -> crep.cpp_value:
+        r'''Return the rep for the node. If it isn't set yet, then run our visit on it. Assure we are returning a value
+
+        node - The ast node to generate a representation for.
+        use_generic_visit - if true do generic_visit rather than visit.
+        reset_result - Reset the _result variable to this value if requested.
+        retain_scope - If true, then the scope level will remain the same before and after the call.
+        TODO: Make sure all these special options are needed
+        '''
+        v = self.get_rep(node, use_generic_visit, reset_result, retain_scope)
+        if not isinstance(v, crep.cpp_value):
+            raise BaseException("Expected a cpp value! Internal error")
+        return v
+
     def resolve_id(self, id):
-        'Look up the in our local dict'
-        return self._var_dict[id] if id in self._var_dict else id
+        'Look up the in our local dict. This takes care of function arguments, etc.'
+        return self._arg_stack.lookup_name(id)
+
+    def make_sequence_from_collection(self, rep):
+        '''
+        Take a collection and produce a sequence. Eventually this should likely be some sort of
+        plug-in architecture. But for now, we will just assume everything looks like a vector. When
+        it comes time for a new type, this is where it should go.
+        '''
+        element_type = rep.cpp_type().element_type()
+        iterator_value = crep.cpp_value(unique_name("i_obj"), top_level_scope(), element_type)
+        l = statement.loop(iterator_value, crep.dereference_var(rep))
+        self._gc.add_statement(l)
+        iterator_value.reset_scope(self._gc.current_scope())
+
+        # For a new sequence like this the sequence and iterator value are the same
+        return crep.cpp_sequence(iterator_value, iterator_value)
+
+    def as_sequence(self, generation_ast: ast.AST):
+        r'''
+        We will convert the generation_ast into a sequence if we can. If we can't, that indicates
+        a likely programming error by this library or by the user.
+
+        generation_ast - The AST that will generate the collection (a call to something that
+                         returns a collection or a Select statement, etc.)
+
+        returns:
+
+        sequence:       An object of type crep.cpp_sequence that contains all the information
+                        about the sequence.
+        '''
+        # Get the representation for the ast
+        rep = self.get_rep(generation_ast)
+
+        # If this is already a sequence then we are done!
+        if isinstance(rep, crep.cpp_sequence):
+            return rep
+
+        # If this is a collection, then we need to turn it into a sequence.
+        if isinstance(rep, crep.cpp_collection):
+            return self.make_sequence_from_collection(rep)
+
+        # If it isn't a sequence or a collection, then something has gone wrong.
+        raise BaseException("Unable to generate a sequence from the given AST. Either there is an internal error, or you are trying to manipulate a '{0}' as a sequence (ast is: {1})".format(type(rep).__name__, ast.dump(generation_ast)))
 
     def visit_Call_Lambda(self, call_node):
-        'Call to a lambda function. This is book keeping and we dive in'
+        'Call to a lambda function. We propagate the arguments through the function'
 
-        for c_arg, l_arg in zip(call_node.args, call_node.func.args.args):
-            self._var_dict[l_arg.arg] = c_arg
+        with stack_frame(self._arg_stack):
+            for c_arg, l_arg in zip(call_node.args, call_node.func.args.args):
+                self._arg_stack.define_name(l_arg.arg, c_arg)
 
-        # Next, process the lambda's body.
-        self.visit(call_node.func.body)
+            # Next, process the lambda's body.
+            call_node.rep = self.get_rep(call_node.func.body)
+    
+    def create_accumulator (self, seq: crep.cpp_sequence, initial_value = None, acc_type=None):
+        'Helper to create an accumulator for the Aggregate function'
+        accumulator_type = acc_type
+        if accumulator_type is None:
+            sv = seq.sequence_value()
+            if not isinstance(sv, crep.cpp_value):
+                raise BaseException("Do not know how to accumulate a sequence!")
+            accumulator_type = sv.cpp_type()
+        if not check_accumulator_type(accumulator_type):
+            raise BaseException("Aggregate over a sequence of type '{0}' is not supported.".format(str(accumulator_type)))
+        
+        # Getting the scope level right is tricky. If this is a straight sequence of items, then we want the sequence level.
+        # But if this is a sequence of sequences, we are aggregating over the sequence itself. So we need to do it one level
+        # up from where the iterator is running on the interior sequence.
+        seq_val = seq.sequence_value()
+        if isinstance(seq_val, crep.cpp_sequence):
+            accumulator_scope = seq_val.iterator_value().scope()[-1]
+        else:
+            accumulator_scope = seq.iterator_value().scope()[-1]
+        accumulator = crep.cpp_variable(unique_name("aggResult"),
+                    accumulator_scope,
+                    accumulator_type,
+                    initial_value=initial_value if initial_value is not None else crep.cpp_value(accumulator_type.default_value(), self._gc.current_scope(), accumulator_type))
+        accumulator_scope.declare_variable(accumulator)
 
-        # Done processing the lambda. Remove the arguments
-        # TODO: the below code should work, but it isn't for some reason.
-        #       Probably because when we move functions we aren't moving the argument names
-        #       correctly (the nesting). This is going to come back and bite us!
-        # for l_arg in call_node.func.args.args:
-        #     del self._var_dict[l_arg.arg]
+        return accumulator, accumulator_scope
 
-    def assure_in_loop(self, collection):
-        r'''
-        Make sure that we are currently in a loop. For example, if we are
-        looking at e.Jets.Aggregate then e.Jets hasn't started a loop. OTOH,
-        looking at e.Jets.Select(j => j.pt).Aggregate, then we are already in
-        a loop.
-
-        collection: representation of a C++ collection or transformed iterable.
+    def visit_Call_Aggregate_only(self, node: ast.Call):
         '''
-        # Before we do anything, make sure we are at the proper place for doing this loop
-        self._gc.set_scope(collection.scope()) if collection.scope() is not None else None
+        - (acc lambda): the accumulator is set to the first element, and the lambda is called to
+                        update it after that. This is called `agg_only`.
+        '''
+        agg_lambda = node.args[0]
 
-        # Now, if the collection is already something are iterating on, then
-        # we are done.
-        if collection.is_iterable:
-            return collection
+        # Get the sequence we are calling against and the accumulator
+        seq = self.as_sequence(node.func.value)
+        accumulator, accumulator_scope = self.create_accumulator(seq)
 
-        # Nope - can we iterate on it (might crash due to user error)
-        if not hasattr(collection, "loop_over_collection"):
-            raise BaseException('Do not know how to loop over the expression "{0}" (with type info: {1}).'.format(collection.as_cpp(), collection.cpp_type()))
-        return collection.loop_over_collection(self._gc)
+        # We have to do a simple if statement here so that the first time through we can set the
+        # accumulator, and the second time we can add to it.
 
+        is_first_iter = crep.cpp_variable(unique_name("is_first"), self._gc.current_scope(), cpp_type=ctyp.terminal('bool'), initial_value=crep.cpp_value('true', self._gc.current_scope(), ctyp.terminal('bool')))
+        accumulator_scope.declare_variable(is_first_iter)
 
-    def visit_Call_Aggregate(self, node):
+        # Set the scope where we will be doing the accumulation
+        sv = seq.sequence_value()
+        if isinstance(sv,crep.cpp_sequence):
+            self._gc.set_scope(sv.iterator_value().scope()[-1])
+        else:
+            self._gc.set_scope(sv.scope())
+
+        # Code up if statement to select out the first element.
+        if_first = statement.iftest(is_first_iter)
+        self._gc.add_statement(if_first)
+        self._gc.add_statement(statement.set_var(is_first_iter, crep.cpp_value("false", self._gc.current_scope(), ctyp.terminal('bool'))))
+
+        # Set the accumulator
+        self._gc.add_statement(statement.set_var(accumulator, seq.sequence_value()))
+        self._gc.pop_scope()
+
+        # Now do the if statement and make the call to calculate the accumulation.
+        self._gc.add_statement(statement.elsephrase())
+        call = ast.Call(func=agg_lambda, args=[accumulator.as_ast(), seq.sequence_value().as_ast()])
+        self._gc.add_statement(statement.set_var(accumulator, self.get_rep(call)))
+
+        # Finally, since this is a terminal, we need to pop off the top.
+        self._gc.set_scope(accumulator_scope)
+
+        # Cache the results in our result in case we are skipping nodes in the AST.
+        node.rep = accumulator
+        self._result = accumulator
+
+    def visit_call_Aggregate_initial(self, node: ast.Call):
+        '''
+        - (const, acc lambda): the accumulator is set to the value, and then the lambda is called to
+                        update it on every single element. This is called `agg_initial`
+        '''
+        agg_lambda = node.args[1]
+        init_val = self.get_rep(node.args[0])
+
+        # Get the sequence we are calling against and the accumulator
+        seq = self.as_sequence(node.func.value)
+        accumulator, accumulator_scope = self.create_accumulator(seq, initial_value=init_val, acc_type=init_val.cpp_type())
+
+        # Now do the accumulation. This happens at the current iterator scope.
+        sv = seq.sequence_value()
+        if isinstance(sv,crep.cpp_sequence):
+            self._gc.set_scope(sv.iterator_value().scope()[-1])
+        else:
+            self._gc.set_scope(sv.scope())
+        call = ast.Call(func=agg_lambda, args=[accumulator.as_ast(), seq.sequence_value().as_ast()])
+        self._gc.add_statement(statement.set_var(accumulator, self.get_rep(call)))
+
+        # Finally, since this is a terminal, we need to pop off the top.
+        self._gc.set_scope(accumulator_scope)
+
+        # Cache the results in our result in case we are skipping nodes in the AST.
+        node.rep = accumulator
+        self._result = accumulator
+
+    def visit_call_Aggregate_initial_func(self, node: ast.Call):
+        '''
+        - (start lambda, acc lambda): the accumulator is set to the start lambda call on the first
+                        element in the sequence, and then acc is called to update it after that.
+                        This is called `agg_initial_func`
+        '''
+        raise BaseException("Not yet implemented")
+        # Needs testing!
+        # agg_lambda = node.args[1]
+        # init_lambda = node.args[0]
+
+        # # Get the sequence we are calling against and the accumulator
+        # seq = self.as_sequence(node.func.value)
+        # accumulator, accumulator_scope = self.create_accumulator(seq, initial_value=init_val)
+
+        # is_first_iter = crep.cpp_value(unique_name("is_first"), accumulator_scope, cpp_type=ctyp.terminal("bool"), initial_value='true')
+        # accumulator_scope.declare_variable(is_first_iter)
+
+        ## BELOW HERE NOT CONVERTED YET.
+
+        # # We have to initialized the variable to some value, and it depends on how the user
+        # # is trying to initialize things - first iteration or with a value. We've done the value case above.
+        # is_first_iter = None
+        # if use_first_element_separately:
+        #     is_first_iter = cpp_variable(unique_name("is_first"), self._gc.current_scope(), cpp_type="bool", initial_value='true')
+        #     decl_block.declare_variable(is_first_iter)
+
+        # # Now we need to emit code at the accumulator level.
+        # self._gc.set_scope(c_loop.scope())
+
+        # # If we have to use the first lambda to set the first value, then we need that code up front.
+        # if use_first_element_separately:
+        #     if_first = statement.iftest(cpp_constant(is_first_iter.as_cpp()))
+        #     self._gc.add_statement(if_first)
+        #     self._gc.add_statement(statement.set_var(is_first_iter, cpp_constant("false")))
+        #     first_scope = self._gc.current_scope()
+
+        #     if init_lambda is not None:
+        #         call = ast.Call(init_lambda, [c_iter.as_ast()])
+        #         self._gc.add_statement(statement.set_var(result, self.get_rep(call)))
+        #     else:
+        #         self._gc.add_statement(statement.set_var(result, c_iter))
+
+        #     self._gc.set_scope(first_scope)
+        #     self._gc.pop_scope()
+        #     self._gc.add_statement(statement.elsephrase())
+
+        # # Perform the aggregation function. We need to call it with the value and the accumulator.
+        # call = ast.Call(func=agg_lambda, args=[result.as_ast(), c_iter.as_ast()])
+        # self._gc.add_statement(statement.set_var(result, self.get_rep(call)))
+
+        # # Finally, since this is a terminal, we need to pop off the top.
+        # self._gc.set_scope(decl_block_scope)
+
+        # # Cache the results in our result incase we are skipping nodes in the AST.
+        # node.rep = result
+        # self._result = result
+
+    def visit_Call_Aggregate(self, node: ast.Call):
         r'''Implement the aggregate algorithm in C++
         
         Our source we loop over, and we count out everything. The final result is whatever it is
@@ -172,83 +416,26 @@ class query_ast_visitor(ast.NodeVisitor):
         Possible arguments to the call:
 
         - (acc lambda): the accumulator is set to the first element, and the lambda is called to
-                        update it after that.
+                        update it after that. This is called `agg_only`.
         - (const, acc lambda): the accumulator is set to the value, and then the lambda is called to
-                        update it on every single element.
+                        update it on every single element. This is called `agg_initial`
         - (start lambda, acc lambda): the accumulator is set to the start lambda call on the first
                         element in the sequence, and then acc is called to update it after that.
+                        This is called `agg_initial_func`
 
         Limitations: only floats for now!
         '''
-        # Parse the argument list
-        use_first_element_separately = False
-        agg_lambda = None
-        init_lambda = None
-        init_val = None
+        # figure out which version of Aggregate we have here.
         if len(node.args) == 1:
-            agg_lambda = node.args[0]
-            use_first_element_separately = True
+            return self.visit_Call_Aggregate_only(node)
         elif len(node.args) == 2:
-            agg_lambda = node.args[1]
-            if type(node.args[0]) is ast.Lambda:
-                use_first_element_separately = True
-                init_lambda = node.args[0]
+            if isinstance(node.args[0], ast.Lambda):
+                return self.visit_call_Aggregate_initial_func(node)
             else:
-                init_val = node.args[0]
-                use_first_element_separately = False
-        else:
-            raise BaseException('Aggregate can have only one or two arguments')
-
-        # Declare the thing that will be a result, and make sure everything above knows about it.
-        result = cpp_variable(unique_name("aggResult"), self._gc.current_scope(), cpp_type="float")
-        self._gc.declare_variable(result)
-
-        # We have to initialized the variable to some value, and it depends on how the user
-        # is trying to initialize things - first iteration or with a value.
-        if use_first_element_separately:
-            is_first_iter = cpp_variable(unique_name("is_first"), self._gc.current_scope(), cpp_type="bool")
-            self._gc.declare_variable(is_first_iter)
-            self._gc.add_statement(statement.set_var(is_first_iter, cpp_expression("true", self._gc.current_scope())))
-        else:
-            self._gc.add_statement(statement.set_var(result, self.get_rep(init_val)))
-
-        # Store the scope so we cna pop back to it.
-        scope = self._gc.current_scope()
-
-        # Next, get the thing we are going to loop over, and generate the loop.
-        # Pull the result out of the main result guy
-        collection = self.get_rep(node.func.value)
-
-        # Iterate over it now. Make sure we are looping over this thing.
-        rep_iterator = self.assure_in_loop(collection)
-
-        # If we have to use the first lambda to set the first value, then we need that code up front.
-        if use_first_element_separately:
-            if_first = statement.iftest(cpp_expression(is_first_iter.as_cpp(), self._gc.current_scope()))
-            self._gc.add_statement(if_first)
-            self._gc.add_statement(statement.set_var(is_first_iter, cpp_expression("false", self._gc.current_scope())))
-            first_scope = self._gc.current_scope()
-
-            if init_lambda is not None:
-                call = ast.Call(init_lambda, [rep_iterator.as_ast()])
-                self._gc.add_statement(statement.set_var(result, self.get_rep(call)))
-            else:
-                self._gc.add_statement(statement.set_var(result, rep_iterator))
-
-            self._gc.set_scope(first_scope)
-            self._gc.pop_scope()
-            self._gc.add_statement(statement.elsephrase())
-
-        # Perform the aggregation function. We need to call it with the value and the accumulator.
-        call = ast.Call(func=agg_lambda, args=[result.as_ast(), rep_iterator.as_ast()])
-        self._gc.add_statement(statement.set_var(result, self.get_rep(call)))
-
-        # Finally, pop the whole thing off.
-        self._gc.set_scope(scope)
-
-        # Cache the results in our result incase we are skipping nodes in the AST.
-        node.rep = result
-        self._result = result
+                return self.visit_call_Aggregate_initial(node)
+        
+        # This isn't good!
+        raise BaseException("Unknown call to Aggregate. Must be Aggregate(func), Aggregate(const, func), or Aggregate(func, func)")
 
     def visit_Call_Member(self, call_node):
         'Method call on an object'
@@ -259,26 +446,34 @@ class query_ast_visitor(ast.NodeVisitor):
             return self.visit_Call_Aggregate(call_node)
 
         # Visit everything down a level.
+        # TODO: Support arguments to functions like this.
         self.generic_visit(call_node)
 
         # figure out what we are calling against, and the
         # method name we are going to be calling against.
         calling_against = self.get_rep(call_node.func.value)
         function_name = call_node.func.attr
+        if not isinstance(calling_against, crep.cpp_value):
+            # We didn't use get_rep_value above because now we can make a better error message.
+            raise BaseException("Do not know how to call '{0}' on '{1}'".format(function_name, type(calling_against).__name__))
 
         # We support member calls that directly translate only. Here, for example, this is only for
         # obj.pt() or similar. The translation is direct.
+        # TODO: The iterator might be in an argument, so passing calling_against here may not be ok.
+        # TODO: We have no type system, who knows what type this function returns. Assume double.
         c_stub = calling_against.as_cpp() + ("->" if calling_against.is_pointer() else ".")
-        self._result = cpp_expression(c_stub + function_name + "()", calling_against.scope())
+        result_type = determine_type_mf(calling_against.cpp_type(), function_name)
+        self._result = crep.cpp_value(c_stub + function_name + "()", calling_against.scope(), result_type)
 
     def visit_function_ast(self, call_node):
         'Drop-in replacement for a function'
         # Get the arguments
         cpp_func = call_node.func
-        arg_reps = [self.get_rep(a) for a in call_node.args]
+        arg_reps = [self.get_rep_value(a) for a in call_node.args]
 
         # Code up a call
-        r = cpp_expression('{0}({1})'.format(cpp_func.cpp_name, ','.join(a.as_cpp() for a in arg_reps)), self._gc.current_scope(), cpp_type = cpp_func.cpp_return_type)
+        # TODO: The iterator might not be Note.
+        r = crep.cpp_value('{0}({1})'.format(cpp_func.cpp_name, ','.join(a.as_cpp() for a in arg_reps)), self._gc.current_scope(), cpp_type = cpp_func.cpp_return_type)
 
         # Include files and return the resulting expression
         for i in cpp_func.include_files:
@@ -291,32 +486,31 @@ class query_ast_visitor(ast.NodeVisitor):
         Very limited call forwarding.
         '''
         # What kind of a call is this?
-        if type(call_node.func) is ast.Lambda:
+        if isinstance(call_node.func, ast.Lambda):
             self.visit_Call_Lambda(call_node)
-        elif type(call_node.func) is ast.Attribute:
+        elif isinstance(call_node.func, ast.Attribute):
             self.visit_Call_Member(call_node)
-        elif type(call_node.func) is cpp_ast.CPPCodeValue:
-            self._result = cpp_ast.process_ast_node(self, self._gc, self._result, call_node)
-        elif type(call_node.func) is function_ast:
+        elif isinstance(call_node.func, cpp_ast.CPPCodeValue):
+            self._result = cpp_ast.process_ast_node(self, self._gc, call_node)
+        elif isinstance(call_node.func, FunctionAST):
             self._result = self.visit_function_ast(call_node)
         else:
             raise BaseException("Do not know how to call '{0}'".format(ast.dump(call_node.func, annotate_fields=False)))
         call_node.rep = self._result
 
-    def visit_Name(self, name_node):
+    def visit_Name(self, name_node: ast.Name):
         'Visiting a name - which should represent something'
         id = self.resolve_id(name_node.id)
-        if isinstance(id, ast.AST):
-            name_node.rep = self.get_rep(id)
+        name_node.rep = self.get_rep(id)
 
     def visit_Subscript(self, node):
         'Index into an array. Check types, as tuple indexing can be very bad for us'
         v = self.get_rep(node.value)
-        if v.cpp_type() != 'std::vector<double>':
+        if not isinstance(v, crep.cpp_collection):
             raise BaseException("Do not know how to take the index of type '{0}'".format(v.cpp_type()))
+
         index = self.get_rep(node.slice)
-        # TODO: extract the type from the expression
-        node.rep = cpp_expression("{0}.at({1})".format(v.as_cpp(), index.as_cpp()), self._gc.current_scope(), cpp_type="double")
+        node.rep = crep.cpp_value("{0}.at({1})".format(v.as_cpp(), index.as_cpp()), self._gc.current_scope(), cpp_type=v.get_element_type())
         self._result = node.rep
 
     def visit_Index(self, node):
@@ -331,7 +525,7 @@ class query_ast_visitor(ast.NodeVisitor):
 
         See github bug #21 for the special case of dealing with (x1, x2, x3)[0].
         '''
-        tuple_node.rep = cpp_tuple(tuple(self.get_rep(e, retain_scope=True) for e in tuple_node.elts), self._gc.current_scope())
+        tuple_node.rep = crep.cpp_tuple(tuple(self.get_rep(e, retain_scope=True) for e in tuple_node.elts), self._gc.current_scope())
         self._result = tuple_node.rep
 
     def visit_BinOp(self, node):
@@ -339,10 +533,16 @@ class query_ast_visitor(ast.NodeVisitor):
         left = self.get_rep(node.left)
         right = self.get_rep(node.right)
 
-        if type(node.op) is ast.Add:
-            r = cpp_expression("({0}+{1})".format(left.as_cpp(), right.as_cpp()), self._gc.current_scope())
-        elif type(node.op) is ast.Div:
-            r = cpp_expression("({0}/{1})".format(left.as_cpp(), right.as_cpp()), self._gc.current_scope())
+        # TODO: Turn this into a table lookup rather than the same thing repeated over and over
+        s = deepest_scope(left, right).scope()
+        if isinstance(node.op, ast.Add):
+            r = crep.cpp_value("({0}+{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
+        elif isinstance(node.op, ast.Div):
+            r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
+        elif isinstance(node.op, ast.Sub):
+            r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
+        elif isinstance(node.op, ast.Mult):
+            r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
         else:
             raise BaseException("Binary operator {0} is not implemented.".format(type(node.op)))
 
@@ -360,7 +560,7 @@ class query_ast_visitor(ast.NodeVisitor):
         '''
         
         # The result we'll store everything in.
-        result = cpp_variable(unique_name("if_else_result"), self._gc.current_scope(), cpp_type="float")
+        result = crep.cpp_variable(unique_name("if_else_result"), self._gc.current_scope(), cpp_type=ctyp.terminal("double"))
         self._gc.declare_variable(result)
 
         # We always have to evaluate the test.
@@ -389,7 +589,7 @@ class query_ast_visitor(ast.NodeVisitor):
         left = self.get_rep(node.left)
         right = self.get_rep(node.comparators[0])
 
-        r = cpp_expression('({0}{1}{2})'.format(left.as_cpp(), compare_operations[type(node.ops[0])], right.as_cpp()), self._gc.current_scope())
+        r = crep.cpp_value('({0}{1}{2})'.format(left.as_cpp(), compare_operations[type(node.ops[0])], right.as_cpp()), self._gc.current_scope(), ctyp.terminal("bool"))
         node.rep = r
         self._result = r
 
@@ -400,12 +600,12 @@ class query_ast_visitor(ast.NodeVisitor):
         '''
 
         # The result of this test
-        result = cpp_variable(unique_name('bool_op'), self._gc.current_scope(), cpp_type='bool')
+        result = crep.cpp_variable(unique_name('bool_op'), self._gc.current_scope(), cpp_type='bool')
         self._gc.declare_variable (result)
 
         # How we check and short-circuit depends on if we are doing and or or.
         check_expr = result.as_cpp() if type(node.op) == ast.And else '!{0}'.format(result.as_cpp())
-        check = cpp_expression(check_expr, self._gc.current_scope(), cpp_type='bool')
+        check = crep.cpp_value(check_expr, self._gc.current_scope(), cpp_type='bool')
 
         first = True
         scope = self._gc.current_scope()
@@ -426,26 +626,39 @@ class query_ast_visitor(ast.NodeVisitor):
 
 
     def visit_Num(self, node):
-        node.rep = cpp_expression(node.n, self._gc.current_scope())
+        node.rep = crep.cpp_value(node.n, self._gc.current_scope(), guess_type_from_number(node.n))
         self._result = node.rep
 
     def visit_Str(self, node):
-        node.rep = cpp_expression('"{0}"'.format(node.s), self._gc.current_scope())
+        node.rep = crep.cpp_value('"{0}"'.format(node.s), self._gc.current_scope(), ctyp.terminal("string"))
         self._result = node.rep
 
     def visit_resultTTree(self, node):
         '''This AST means we are taking an iterable and converting it to a ROOT file.
         '''
-        # Get the representations for each variable.
+        # Get the representations for each variable. We expect some sort of structure
+        # for the variables - or perhaps a single variable.
         self.generic_visit(node)
-        v_rep_not_norm = self.get_rep(node.source)
-        v_rep = v_rep_not_norm.tup() if type(v_rep_not_norm) is cpp_tuple else (v_rep_not_norm,)
-        if len(v_rep) != len(node.column_names):
-            raise BaseException("Number of columns ({0}) is not the same as labels ({1}) in TTree creation".format(len(v_rep), len(node.column_names)))
+        v_rep_not_norm = self.as_sequence(node.source)
+
+        # What we have is a sequence of the data values we want to fill. The iterator at play
+        # here is the scope we want to use to run our Fill() calls to the TTree.
+        scope_fill = v_rep_not_norm.iterator_value().scope()
+
+        # Clean the data up so it is uniform and the next bit can proceed smoothly.
+        # If we don't have a tuple of data to log, turn it into a tuple.
+        seq_values = v_rep_not_norm.sequence_value()
+        if not isinstance(seq_values, crep.cpp_tuple):
+            seq_values = crep.cpp_tuple((v_rep_not_norm.sequence_value(),), scope_fill)
+
+        # Make sure the number of items is the same as the number of columns specified.
+        if len(seq_values.values()) != len(node.column_names):
+            raise BaseException("Number of columns ({0}) is not the same as labels ({1}) in TTree creation".format(len(seq_values.values()), len(node.column_names)))
 
         # Next, look at each on in turn to decide if it is a vector or a simple variable.
-        var_names = [(name, cpp_variable(unique_name(name, is_class_var=True), self._gc.current_scope(), cpp_type=type_of_rep(rep))) 
-                    for name, rep in zip(node.column_names, v_rep)]
+        # Create a variable that we will fill for each one.
+        var_names = [(name, crep.cpp_variable(unique_name(name, is_class_var=True), self._gc.current_scope(), cpp_type=get_ttree_type(rep))) 
+                    for name, rep in zip(node.column_names, seq_values.values())]
 
         # For each incoming variable, we need to declare something we are going to write.
         for cv in var_names:
@@ -461,28 +674,29 @@ class query_ast_visitor(ast.NodeVisitor):
         # For each varable we need to save, cache it or push it back, depending.
         # Make sure that it happens at the proper scope, where what we are after is defined!
         s_orig = self._gc.current_scope()
-        for e in zip(v_rep, var_names):
+        for e_rep,e_name in zip(seq_values.values(), var_names):
             # Set the scope. Normally we want to do it where the variable was calculated
             # (think of cases when you have to calculate something with a `push_back`),
             # but if the variable was already calculated, we want to make sure we are at least
             # in the same scope as the tree fill.
-            if scope_is_deeper(e[0].scope(), v_rep_not_norm.scope()):
-                self._gc.set_scope(v_rep_not_norm.scope())
+            e_rep_scope = e_rep.scope() if not isinstance(e_rep, crep.cpp_sequence) else e_rep.sequence_value().scope()
+            if e_rep_scope.starts_with(scope_fill):
+                self._gc.set_scope(e_rep_scope)
             else:
-                self._gc.set_scope(e[0].scope())
+                self._gc.set_scope(scope_fill)
 
             # If the variable is something we are iterating over, then fill it, otherwise,
             # just set it.
-            if e[0].is_iterable:
-                self._gc.add_statement(statement.push_back(e[1][1], e[0]))
+            if rep_is_collection(e_rep):
+                self._gc.add_statement(statement.push_back(e_name[1], e_rep.sequence_value()))
             else:
-                self._gc.add_statement(statement.set_var(e[1][1], e[0]))
+                self._gc.add_statement(statement.set_var(e_name[1], e_rep))
 
         # The fill statement. This should happen at the scope where the tuple was defined.
-        self._gc.set_scope(v_rep_not_norm.scope())
+        self._gc.set_scope(scope_fill)
         self._gc.add_statement(statement.ttree_fill(tree_name))
-        for e in zip(v_rep, var_names):
-            if e[0].is_iterable:
+        for e in zip(seq_values.values(), var_names):
+            if rep_is_collection(e[0]):
                 self._gc.add_statement(statement.container_clear(e[1][1]))
 
         # And we are a terminal, so pop off the block.
@@ -494,8 +708,10 @@ class query_ast_visitor(ast.NodeVisitor):
         The result of this guy is an awkward array. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.
         '''
-        ttree = query_result_asts.resultTTree(node.source, node.column_names)
+        ttree = query_result_asts.ResultTTree(node.source, node.column_names)
         r = self.get_rep(ttree)
+        if not isinstance(r, rh.cpp_ttree_rep):
+            raise BaseException("Can't deal with different return type from tree!")
         node.rep = rh.cpp_awkward_rep(r.filename, r.treename, self._gc.current_scope())
         self._result = node.rep
 
@@ -504,8 +720,10 @@ class query_ast_visitor(ast.NodeVisitor):
         The result of this guy is an pandas dataframe. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.
         '''
-        ttree = query_result_asts.resultTTree(node.source, node.column_names)
+        ttree = query_result_asts.ResultTTree(node.source, node.column_names)
         r = self.get_rep(ttree)
+        if not isinstance(r, rh.cpp_ttree_rep):
+            raise BaseException("Can't deal with different return type from tree!")
         node.rep = rh.cpp_pandas_rep(r.filename, r.treename, self._gc.current_scope())
         self._result = node.rep
 
@@ -513,82 +731,102 @@ class query_ast_visitor(ast.NodeVisitor):
         'Transform the iterable from one form to another'
 
         # Make sure we are in a loop
-        s_rep = self.get_rep(select_ast.source)
-        loop_var = self.assure_in_loop(s_rep)
+        seq = self.as_sequence(select_ast.source)
 
         # Simulate this as a "call"
         selection = lambda_unwrap(select_ast.selection)
-        c = ast.Call(func=selection, args=[loop_var.as_ast()])
-        rep = self.get_rep(c)
+        c = ast.Call(func=selection, args=[seq.sequence_value().as_ast()])
+        new_sequence_value = self.get_rep(c)
 
-        rep.is_iterable = True
+        # We need to build a new sequence.
+        # TODO: figure out how to get pyright to not flag new_sequence_value as an error
+        rep = crep.cpp_sequence(new_sequence_value, seq.iterator_value())
+
         select_ast.rep = rep
+        self._result = rep
 
     def visit_SelectMany(self, node):
         r'''
         Apply the selection function to the base to generate a collection, and then
         loop over that collection.
         '''
+        # Make sure the source is around. We have to do this because code generation in this
+        # framework is lazy. And if the `selection` function does not use the source, and
+        # looking at that source might generate a loop, that loop won't be generated! Ops!
+        _ = self.as_sequence(node.source)
+
         # We need to "call" the source with the function. So build up a new
         # call, and then visit it.
 
-        c = ast.Call(func=node.selection.body, args=[node.source])
-        rep_collection = self.get_rep(c)
+        c = ast.Call(func=lambda_unwrap(node.selection), args=[node.source])
 
         # Get the collection, and then generate the loop over it.
         # It could be that this comes back from something that is already iterating (like a Select statement),
         # in which case we are already looping.
-        rep_iterator = self.assure_in_loop(rep_collection)
+        seq  = self.as_sequence(c)
 
-        node.rep = rep_iterator
+        node.rep = seq
+        self._result = seq
 
     def visit_Where(self, node):
         'Apply a filtering to the current loop.'
 
         # Make sure we are in a loop
-        s_rep = self.get_rep(node.source)
-        loop_var = self.assure_in_loop(s_rep)
+        seq = self.as_sequence(node.source)
 
         # Simulate the filtering call - we want the resulting value to test.
         filter = lambda_unwrap(node.filter)
-        c = ast.Call(func=filter, args=[loop_var.as_ast()])
+        c = ast.Call(func=filter, args=[seq.sequence_value().as_ast()])
         rep = self.get_rep(c)
 
         # Create an if statement
         self._gc.add_statement(statement.iftest(rep))
 
-        # Finally, our result is basically what we had for the source.
-        loop_var.set_scope(self._gc.current_scope())
-        node.rep = loop_var
-        self._result = loop_var
+        # Ok - new sequence. This the same as the old sequence, only the sequence value is updated.
+        # Protect against sequence of sequences (LOVE type checkers, which caught this as a possibility)
+        w_val = seq.sequence_value()
+        if isinstance(w_val, crep.cpp_sequence):
+            raise BaseException("Internal error: don't know how to look at a sequence")
+        new_sequence_var = w_val.copy_with_new_scope(self._gc.current_scope())
+        node.rep = crep.cpp_sequence(new_sequence_var, seq.iterator_value())
+
+        self._result = node.rep
 
     def visit_First(self, node):
         'We are in a sequence. Take the first element of the sequence and use that for future things.'
 
         # Make sure we are in a loop.
-        s_rep = self.get_rep(node.source)
-        loop_var = self.assure_in_loop(s_rep)
+        seq = self.as_sequence(node.source)
 
-        # Next, mark an external scope edge with a variable that will track when we hit first.
-        # To do this, we have to go up to the loop we are currently looking at.
-        # TODO: Scope needs some methods so we aren't using magic numbers like [0] and [1].
-        is_first = cpp_variable(unique_name('is_first'), s_rep.scope(), cpp_type='bool', initial_value='true')
-        var_book_statement = s_rep.scope()[0][-1]
-        var_book_statement.declare_variable(is_first)
+        # The First terminal works by protecting the code with a if (first_time) {} block.
+        # We need to declare the first_time variable outside the block where the thing we are
+        # looping over here is defined. This is a little tricky, so we delegate to another method.
+        loop_scope = seq.iterator_value().scope()
+        outside_block_scope = loop_scope[-1]
+
+        # Define the variable to track this outside that block.
+        is_first = crep.cpp_variable(unique_name('is_first'), outside_block_scope, cpp_type=ctyp.terminal('bool'), initial_value=crep.cpp_value('true', self._gc.current_scope(), ctyp.terminal('bool')))
+        outside_block_scope.declare_variable(is_first)
 
         # Now, as long as is_first is true, we can execute things inside this statement.
+        # The trick is putting the if statement in the right place. We need to locate it just one level
+        # below where we defined the scope above.
         s = statement.iftest(is_first)
+        s.add_statement(statement.set_var(is_first, crep.cpp_value('false', top_level_scope(), cpp_type=ctyp.terminal('bool'))))
+
+        sv = seq.sequence_value()
+        if isinstance(sv, crep.cpp_sequence):
+            self._gc.set_scope(sv.iterator_value().scope()[-1])
+        else:
+            self._gc.set_scope(sv.scope())
         self._gc.add_statement(s)
-        self._gc.add_statement(statement.set_var(is_first, cpp_expression('false', self._gc.current_scope(), cpp_type='bool')))
 
-        # Finally, the result of first is the object that we are looping over.
-        new_loop_var = copy(loop_var)
-        new_loop_var.is_iterable = False
-        new_loop_var.set_scope(self._gc.current_scope())
+        # If we just found the first sequence in a sequence, return that.
+        # Otherwise return a new version of the value.
+        first_value = sv if isinstance(sv, crep.cpp_sequence) else sv.copy_with_new_scope(self._gc.current_scope())
 
-        node.rep = new_loop_var
-        self._result = new_loop_var
-
+        node.rep = first_value
+        self._result = first_value
 
 class cpp_source_emitter:
     r'''
@@ -662,7 +900,9 @@ class atlas_xaod_executor:
         # result is going to be.
         qv = query_ast_visitor()
         result_rep = qv.get_rep(ast)
+        return self.get_result(qv, result_rep)
 
+    def get_result(self, qv, result_rep):
         # Emit the C++ code into our dictionaries to be used in template generation below.
         query_code = cpp_source_emitter()
         qv.emit_query(query_code)
@@ -700,14 +940,22 @@ class atlas_xaod_executor:
             self.copy_template_file(j2_env, info, 'query.h', local_run_dir)
             self.copy_template_file(j2_env, info, 'runner.sh', local_run_dir)
 
-            os.chmod(os.path.join(local_run_dir, 'runner.sh'), 0o755)
+            os.chmod(os.path.join(str(local_run_dir), 'runner.sh'), 0o755)
 
             # Now use docker to run this mess
             docker_cmd = "docker run --rm -v {0}:/scripts -v {0}:/results -v {1}:/data  atlas/analysisbase:21.2.62 /scripts/runner.sh".format(
                 local_run_dir, datafile_dir)
-            r = os.system(docker_cmd)
-            print ("Process result is ", r)
-            os.system("type " + os.path.join(local_run_dir, "query.cxx"))
+            
+            if dump_running_log:
+                r = subprocess.call(docker_cmd, stderr=subprocess.STDOUT, shell=False)
+                print ("Result of run: {0}".format(r))
+            else:
+                r = subprocess.call(docker_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
+            if r != 0:
+                raise BaseException("Docker command failed with error {0}".format(r))
+
+            if dump_cpp:
+                os.system("type " + os.path.join(str(local_run_dir), "query.cxx"))
 
             # Extract the result.
             if type(result_rep) not in result_handlers:

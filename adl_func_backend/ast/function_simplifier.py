@@ -1,6 +1,7 @@
 # Various node visitors to clean up nested function calls of various types.
 from adl_func_client.query_ast import Select, Where, SelectMany, First
 from adl_func_client.util_ast import lambda_body, lambda_body_replace, lambda_unwrap, lambda_call, lambda_build, lambda_is_identity, lambda_test, lambda_is_true
+from adl_func_backend.ast.call_stack import argument_stack, stack_frame
 import copy
 import ast
 
@@ -21,8 +22,8 @@ def convolute(ast_g, ast_f):
         raise BaseException("Only lambdas in Selects!")
     
     # Combine the lambdas into a single call by calling g with f as an argument
-    l_g = lambda_unwrap(ast_g)
-    l_f = lambda_unwrap(ast_f)
+    l_g = copy.deepcopy(lambda_unwrap(ast_g))
+    l_f = copy.deepcopy(lambda_unwrap(ast_f))
 
     x = arg_name()
     f_arg = ast.Name(x, ast.Load())
@@ -35,6 +36,10 @@ def convolute(ast_g, ast_f):
     # Build a new call to nest the functions
     return call_g_lambda
 
+def make_Select(source, selection):
+    'Make a select, and return source is selection is an identity'
+    return source if lambda_is_identity(selection) else Select(source, selection) 
+
 class simplify_chained_calls(ast.NodeTransformer):
     '''
     In order to cleanly evaluate things like tuples (which should not show up at the back end),
@@ -43,7 +48,7 @@ class simplify_chained_calls(ast.NodeTransformer):
     '''
 
     def __init__(self):
-        self._arg_dict = {}
+        self._arg_stack = argument_stack()
 
     def visit_Select_of_Select(self, parent, selection):
         r'''
@@ -61,7 +66,7 @@ class simplify_chained_calls(ast.NodeTransformer):
         new_selection = self.visit(convolute(func_g, func_f))
 
         # And return the parent select with the new selection function
-        return Select(parent.source, new_selection)
+        return make_Select(parent.source, new_selection)
 
     def visit_Select_of_SelectMany(self, parent, selection):
         r'''
@@ -74,7 +79,7 @@ class simplify_chained_calls(ast.NodeTransformer):
         func_g = selection
         func_f = parent.selection
 
-        return self.visit(SelectMany(parent.source, lambda_body_replace(func_f, Select(lambda_body(func_f), func_g))))
+        return self.visit(SelectMany(parent.source, lambda_body_replace(func_f, make_Select(lambda_body(func_f), func_g))))
 
     def visit_Select(self, node):
         r'''
@@ -105,10 +110,7 @@ class simplify_chained_calls(ast.NodeTransformer):
             return self.visit_Select_of_SelectMany(parent_select, node.selection)
         else:
             selection = self.visit(node.selection)
-            if lambda_is_identity(selection):
-                return parent_select
-            else:
-                return Select(parent_select, self.visit(node.selection))
+            return make_Select(parent_select, selection)
 
     def visit_SelectMany_of_Select(self, parent, selection):
         '''
@@ -195,7 +197,7 @@ class simplify_chained_calls(ast.NodeTransformer):
         seq = parent.source
 
         w = Where(seq, self.visit(convolute(func_g, func_f)))
-        s = Select(w, func_f)
+        s = make_Select(w, func_f)
 
         # Recursively visit this mess to see if the Where needs to move further up.
         return self.visit(s)
@@ -258,11 +260,11 @@ class simplify_chained_calls(ast.NodeTransformer):
         '''
         if type(call_node.func) is ast.Lambda:
             arg_asts = [self.visit(a) for a in call_node.args]
-            for a_name, arg in zip(call_node.func.args.args, arg_asts):
-                # TODO: These have to be removed correctly (deal with common arg names!)
-                self._arg_dict[a_name.arg] = arg
-            # Now, evaluate the expression, and then lift it.
-            return self.visit(call_node.func.body)
+            with stack_frame(self._arg_stack):
+                for a_name, arg in zip(call_node.func.args.args, arg_asts):
+                    self._arg_stack.define_name(a_name.arg, arg)
+                # Now, evaluate the expression, and then lift it.
+                return self.visit(call_node.func.body)
         else:
             return self.generic_visit(call_node)
 
@@ -292,7 +294,7 @@ class simplify_chained_calls(ast.NodeTransformer):
 
         # Build the select that starts from the source and does the slice.
         a = arg_name()
-        select = Select(source, lambda_build(a, ast.Subscript(ast.Name(a, ast.Load()), s, ast.Load())))
+        select = make_Select(source, lambda_build(a, ast.Subscript(ast.Name(a, ast.Load()), s, ast.Load())))
 
         return self.visit(First(select))
 
@@ -317,9 +319,7 @@ class simplify_chained_calls(ast.NodeTransformer):
 
     def visit_Name(self, name_node):
         'Do lookup and see if we should translate or not.'
-        if name_node.id in self._arg_dict:
-            return self._arg_dict[name_node.id]
-        return name_node
+        return self._arg_stack.lookup_name(name_node.id, default=name_node)
 
     def visit_Attribute(self, node):
         'Make sure to make a new version of the Attribute so it does not get reused'

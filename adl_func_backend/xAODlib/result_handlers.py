@@ -1,7 +1,8 @@
 # Code to work with the various types of data the executor is going to have to
 # return to the front end.
 
-from adl_func_backend.cpplib.cpp_representation import cpp_rep_base
+from adl_func_backend.cpplib.cpp_representation import cpp_value
+import adl_func_backend.cpplib.cpp_types as ctyp
 from adl_func_backend.cpplib.cpp_vars import unique_name
 from collections import namedtuple
 import pandas as pd
@@ -12,10 +13,10 @@ import shutil
 
 ##################
 # TTree return
-class cpp_ttree_rep(cpp_rep_base):
+class cpp_ttree_rep(cpp_value):
     'This is what a TTree operator returns'
     def __init__ (self, filename, treename, scope):
-        cpp_rep_base.__init__(self, scope)
+        cpp_value.__init__(self, unique_name("ttree_rep"), scope, ctyp.terminal("ttreetfile"))
         self.filename = filename
         self.treename = treename
 
@@ -45,10 +46,10 @@ def extract_result_TTree(rep, run_dir):
 
 #############
 # Awkward Array Return
-class cpp_awkward_rep(cpp_rep_base):
+class cpp_awkward_rep(cpp_value):
     'This is how an awkward array comes back'
     def __init__ (self, filename, treename, scope):
-        cpp_rep_base.__init__(self, scope)
+        cpp_value.__init__(self, unique_name("awk_array"), scope, ctyp.terminal("awkwardarray"))
         self.filename = filename
         self.treename = treename
 
@@ -71,10 +72,10 @@ def extract_awkward_result(rep, run_dir):
 
 #############
 # Pandas Return
-class cpp_pandas_rep(cpp_rep_base):
+class cpp_pandas_rep(cpp_value):
     'This is how an awkward array comes back'
     def __init__ (self, filename, treename, scope):
-        cpp_rep_base.__init__(self, scope)
+        cpp_value.__init__(self, unique_name("pandas"), scope, ctyp.terminal("pandasdf"))
         self.filename = filename
         self.treename = treename
 

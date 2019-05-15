@@ -3,7 +3,7 @@
 import ast
 from collections import namedtuple
 
-class function_ast(ast.AST):
+class FunctionAST(ast.AST):
     '''
     An AST node that represents a function that can be a drop-in replacement for
     a python function
@@ -41,7 +41,7 @@ class find_known_functions(ast.NodeTransformer):
 
         # Build the replacement.        
         info = functions_to_replace[fnc_name]
-        node.func = function_ast(info.cpp_name, info.include_files, info.cpp_return_type)
+        node.func = FunctionAST(info.cpp_name, info.include_files, info.cpp_return_type)
         
         return node        
 

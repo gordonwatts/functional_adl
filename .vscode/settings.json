@@ -8,6 +8,8 @@
         "NNPDF",
         "Pythia",
         "ROOTT",
+        "asts",
+        "chmod",
         "deriv",
         "gridds",
         "isnot",
