@@ -712,7 +712,7 @@ class query_ast_visitor(ast.NodeVisitor):
         self._gc.set_scope(s_orig)
         self._gc.pop_scope()
 
-    def visit_resultAwkwardArray(self, node):
+    def visit_ResultAwkwardArray(self, node: query_result_asts.ResultAwkwardArray):
         '''
         The result of this guy is an awkward array. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.
@@ -724,7 +724,7 @@ class query_ast_visitor(ast.NodeVisitor):
         node.rep = rh.cpp_awkward_rep(r.filename, r.treename, self._gc.current_scope())
         self._result = node.rep
 
-    def visit_resultPandasDF(self, node):
+    def visit_ResultPandasDF(self, node: query_result_asts.ResultPandasDF):
         '''
         The result of this guy is an pandas dataframe. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.

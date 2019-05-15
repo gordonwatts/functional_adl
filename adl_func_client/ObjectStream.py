@@ -1,6 +1,6 @@
 # An Object stream represents a stream of objects, floats, integers, etc.
 import adl_func_client.query_ast as query_ast
-from adl_func_client.query_result_asts import ResultTTree
+from adl_func_client.query_result_asts import ResultTTree, ResultAwkwardArray, ResultPandasDF
 from adl_func_client.util_ast_LINQ import parse_as_ast
 # import ast
 from typing import Any
@@ -60,16 +60,16 @@ class ObjectStream:
         '''
         return ObjectStream(query_ast.Where(self._ast, parse_as_ast(filter)))
 
-    # def AsPandasDF(self, columns=[]):
-    #     r"""
-    #     Return a pandas dataframe. We do this by running the conversion.
+    def AsPandasDF(self, columns=[]):
+        r"""
+        Return a pandas dataframe. We do this by running the conversion.
 
-    #     columns - Array of names of the columns. Will default to "col0", "call1", etc.
-    #     """
+        columns - Array of names of the columns. Will default to "col0", "call1", etc.
+        """
 
-    #     # We do this by first generating a simple ROOT file, then loading it into a dataframe with
-    #     # uproot.
-    #     return ObjectStream(resultPandasDF(self._ast, columns))
+        # We do this by first generating a simple ROOT file, then loading it into a dataframe with
+        # uproot.
+        return ObjectStream(ResultPandasDF(self._ast, columns))
 
     def AsROOTTTree(self, filename, treename, columns=[]):
         r"""
@@ -94,13 +94,13 @@ class ObjectStream:
         """
         return ObjectStream(ResultTTree(self._ast, columns))
 
-    # def AsAwkwardArray(self, columns=[]):
-    #     r'''
-    #     Terminal - take the AST and return a root file.
+    def AsAwkwardArray(self, columns=[]):
+        r'''
+        Terminal - take the AST and return a root file.
 
-    #     columns - Array of names of the columns
-    #     '''
-    #     return ObjectStream(resultAwkwardArray(self._ast, columns))
+        columns - Array of names of the columns
+        '''
+        return ObjectStream(ResultAwkwardArray(self._ast, columns))
 
     def value(self, executor = None) -> Any:
         r"""
