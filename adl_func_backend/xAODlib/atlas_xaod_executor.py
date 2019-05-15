@@ -532,7 +532,7 @@ class query_ast_visitor(ast.NodeVisitor):
         # We need to "call" the source with the function. So build up a new
         # call, and then visit it.
 
-        c = ast.Call(func=node.selection.body[0].value, args=[node.source])
+        c = ast.Call(func=node.selection.body, args=[node.source])
         rep_collection = self.get_rep(c)
 
         # Get the collection, and then generate the loop over it.

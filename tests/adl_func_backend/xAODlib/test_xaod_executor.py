@@ -1,5 +1,6 @@
 # Tests that make sure the xaod executor is working correctly
 from adl_func_client.event_dataset import EventDataset
+from adl_func_client.util_ast_LINQ import replace_LINQ_operators
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 from adl_func_backend.util_LINQ import find_dataset
 import ast
@@ -7,9 +8,10 @@ import ast
 
 # An executor that will run the xAOD infrastructure. This would be defaulted for the actual user.
 def xaod_process_ast(a: ast.AST):
+    a = replace_LINQ_operators().visit(a)
     file = find_dataset(a)
     exe = atlas_xaod_executor(file.url)
-    return exe.evaluate(exe.apply_ast_transformations(ast))
+    return exe.evaluate(exe.apply_ast_transformations(a))
 
 def test_simple_query_run_rootfile():
     'This will do a simple test on a local file - it takes a while to run, so may not want it as part of regular testing'
