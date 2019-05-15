@@ -64,4 +64,4 @@ cpp_function = namedtuple('cpp_function', ['cpp_name', 'include_files', 'cpp_ret
 
 # A few simple functions:
 add_function_mapping('builtins.abs', 'std::abs', 'cmath', 'double')
-add_function_mapping('math.sin', 'std::sin', 'cmath', 'double')
+add_function_mapping('sin', 'std::sin', 'cmath', 'double')

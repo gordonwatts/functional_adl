@@ -12,13 +12,13 @@ from adl_func_client.event_dataset import EventDataset
 def test_first_jet_in_event():
     EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("bogus").Select(lambda j: j.pt()).First()') \
-        .AsROOTTTree('dude.root', 'analysis') \
+        .AsROOTTTree('dude.root', 'analysis', 'JetPt') \
         .value(executor=exe_for_test)
 
 def test_first_after_selectmany():
     EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("jets").SelectMany(lambda j: e.Tracks("InnerTracks")).First()') \
-        .AsROOTTTree('dude.root', 'analysis') \
+        .AsROOTTTree('dude.root', 'analysis', 'JetPt') \
         .value(executor=exe_for_test)
 
 def test_first_after_where():
@@ -41,7 +41,7 @@ def test_first_object_in_each_event():
 
 def test_First_Of_Select_is_not_array():
     # The following statement should be a straight sequence, not an array.
-    EventDataset("file://root.root") \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt()/1000.0).Where(lambda jpt: jpt > 10.0).First()') \
         .AsPandasDF('FirstJetPt') \
         .value(executor=exe_for_test)
@@ -62,7 +62,7 @@ def test_First_Of_Select_is_not_array():
 
 def test_First_Of_Select_After_Where_is_in_right_place():
     # Make sure that we have the "First" predicate after if Where's if statement.
-    EventDataset("file://root.root") \
+    r = EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt()/1000.0).Where(lambda jpt: jpt > 10.0).First()') \
         .AsPandasDF('FirstJetPt') \
         .value(executor=exe_for_test)

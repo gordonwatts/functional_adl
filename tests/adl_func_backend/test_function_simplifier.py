@@ -2,6 +2,8 @@
 # Now the real test code starts.
 #from adl_func_backend.util_ast_LINQ import simplify_chained_calls
 from adl_func_client.util_ast_LINQ import replace_LINQ_operators
+from adl_func_backend.ast.function_simplifier import simplify_chained_calls
+from tests.util_debug_ast import normalize_ast
 import ast
 
 def util_process(ast_in, ast_out):
