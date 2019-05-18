@@ -1,9 +1,3 @@
-# Test the first and last predicates
-# Following two lines necessary b.c. I can't figure out how to get pytest to pick up the python path correctly
-# despite reading a bunch of docs.
-import sys
-sys.path.append('.')
-
 # Code to do the testing starts here.
 from math import sin
 from tests.adl_func_backend.xAODlib.utils_for_testing import exe_for_test, get_lines_of_code, print_lines, find_line_with, find_open_blocks

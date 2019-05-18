@@ -1,9 +1,5 @@
 # Test the scope utilities
 
-# Following two lines necessary b.c. I can't figure out how to get pytest to pick up the python path correctly
-# despite reading a bunch of docs.
-import sys
-sys.path.append('.')
 
 from adl_func_backend.xAODlib.generated_code import generated_code
 import adl_func_backend.xAODlib.statement as statement
