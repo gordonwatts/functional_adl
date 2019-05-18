@@ -938,7 +938,7 @@ class atlas_xaod_executor:
 
             # Next, copy over and fill the template files that will control the xAOD running.
             # Assume they are located relative to the python include path.
-            template_dir = find_dir("./R21Code")
+            template_dir = find_dir("adl_func_backend/R21Code")
             j2_env = jinja2.Environment(
                 loader=jinja2.FileSystemLoader(template_dir))
             self.copy_template_file(
@@ -970,3 +970,17 @@ class atlas_xaod_executor:
             if type(result_rep) not in result_handlers:
                 raise BaseException('Do not know how to process result of type {0}.'.format(type(result_rep).__name__))
             return result_handlers[type(result_rep)](result_rep, local_run_dir)
+
+def use_executor_xaod_docker(a: ast.AST):
+    '''
+    Execute a query on the local machine, in a docker container.
+    '''
+    # Setup the rep for this filter
+    from adl_func_backend.util_LINQ import find_dataset
+    file = find_dataset(a)
+    iterator = crep.cpp_variable("bogus-do-not-use", top_level_scope(), cpp_type=None)
+    file.rep = crep.cpp_sequence(iterator, iterator)
+
+    # Use the dummy executor to process this, and return it.
+    exe = atlas_xaod_executor(file.url)
+    return exe.evaluate(exe.apply_ast_transformations(a))

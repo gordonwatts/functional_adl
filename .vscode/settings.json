@@ -17,6 +17,7 @@
         "localds",
         "ltlow",
         "nargs",
-        "nfiles"
+        "nfiles",
+        "xaod"
     ]
 }

@@ -1,19 +1,13 @@
 # Contains test that will run the full query.
 
-
-# Following two lines necessary b.c. I can't figure out how to get pytest to pick up the python path correctly
-# despite reading a bunch of docs.
-import sys
-sys.path.append('.')
-
 # These are very long running do not run them normally!!
 import pytest
 pytestmark = pytest.mark.skipif(True, reason='Long running tests, skipped except when run by hand')
 
 # These are *long* tests and so should not normally be run. Each test can take of order 30 seconds or so!!
-
 from adl_func_client.event_dataset import EventDataset
 from adl_func_backend.cpplib.math_utils import DeltaR
+from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docker
 
 # The file we are going to go after:
 f = EventDataset(r"file://G:/mc16_13TeV/AOD.16300985._000011.pool.root.1")
@@ -25,7 +19,7 @@ def test_select_first_of_array():
     training_df = f \
             .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: e.Tracks("InDetTrackParticles")).First().Count()') \
             .AsPandasDF('dude') \
-            .value()
+            .value(executor=use_executor_xaod_docker)
     assert training_df.iloc[0]['dude'] == 1897
     assert training_df.iloc[1]['dude'] == 605
     assert training_df.iloc[1999]['dude'] == 231
@@ -36,7 +30,7 @@ def test_flatten_array():
         .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
         .Select('lambda j: j.pt()/1000.0') \
         .AsPandasDF('JetPt') \
-        .value()
+        .value(executor=use_executor_xaod_docker)
     assert int(training_df.iloc[0]['JetPt']) == 257
 
 def test_First_two_outer_loops():
@@ -46,7 +40,7 @@ def test_First_two_outer_loops():
     training_df = f \
             .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: e.Tracks("InDetTrackParticles").Where(lambda t: t.pt() > 1000.0)).First().Count()') \
             .AsPandasDF('dude') \
-            .value()
+            .value(executor=use_executor_xaod_docker)
     assert training_df.iloc[0]['dude'] == 693
 
 def test_first_object_in_event():
@@ -54,7 +48,7 @@ def test_first_object_in_event():
     training_df = f \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").First().pt()/1000.0') \
         .AsPandasDF('FirstJetPt') \
-        .value()
+        .value(executor=use_executor_xaod_docker)
     assert int(training_df.iloc[0]['FirstJetPt']) == 257
 
 def test_first_object_in_event_with_where():
@@ -62,7 +56,7 @@ def test_first_object_in_event_with_where():
     training_df = f \
         .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt()/1000.0).Where(lambda jpt: jpt > 10.0).First()') \
         .AsPandasDF('FirstJetPt') \
-        .value()
+        .value(executor=use_executor_xaod_docker)
     assert int(training_df.iloc[0]['FirstJetPt']) == 257
     assert len(training_df) == 2000
 
@@ -70,5 +64,5 @@ def test_truth_particles():
     training_df = f \
         .Select("lambda e: e.TruthParticles('TruthParticles').Count()") \
         .AsPandasDF('NTruthParticles') \
-        .value()
+        .value(executor=use_executor_xaod_docker)
     assert training_df.iloc[0]['NTruthParticles'] == 1557
