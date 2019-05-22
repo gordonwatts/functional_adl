@@ -87,7 +87,7 @@ class cpp_ast_finder(ast.NodeTransformer):
 
         return node
 
-def process_ast_node(visitor, gc, call_node):
+def process_ast_node(visitor, gc, call_node: ast.Call):
     r'''Inject the proper code into the output stream to deal with this C++ code.
     
     We expect this to be run on the back-end of the system.
@@ -128,7 +128,7 @@ def process_ast_node(visitor, gc, call_node):
     for s in cpp_ast_node.running_code:
         l = s
         for src,dest in repl_list:
-            l = l.replace(src, dest)            
+            l = l.replace(src, str(dest))            
         blk.add_statement(statements.arbitrary_statement(l))
 
     # Set the result and close the scope

@@ -25,7 +25,7 @@ def DeltaRAst(call_node):
     r.running_code += ['auto d_phi = TVector2::Phi_mpi_pi(phi1-phi2);']
     r.running_code += ['auto result = sqrt(d_eta*d_eta + d_phi*d_phi);']
     r.result = 'result'
-    r.result_rep = cpp_variable(unique_name('delta_r'), scope=None, cpp_type='double')
+    r.result_rep = lambda scope: cpp_variable(unique_name('delta_r'), scope=scope, cpp_type='double')
 
     call_node.func = r
     return call_node
