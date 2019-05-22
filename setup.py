@@ -2,10 +2,12 @@ import sys
 import os.path
 
 from setuptools import find_packages
-from setuptools import setup
+from distutils.core import setup
+from os import listdir
 
 # TODO: find_packages returns an empty array, what is missing?
 print (find_packages())
+xaod_template_files = listdir('adl_func_backend/R21Code')
 setup(name="functional_adl",
     version='0.1.0-alpha.1',
     packages=find_packages(exclude=['tests']),
@@ -37,5 +39,6 @@ setup(name="functional_adl",
         "Topic :: Software Development",
         "Topic :: Utilities",
     ],
+    data_files=[('adl_func_backend/R21Code', [f'adl_func_backend/R21Code/{f}' for f in xaod_template_files])],
     platforms="Any",
 )
