@@ -11,6 +11,8 @@ from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docke
 
 # The file we are going to go after:
 f = EventDataset(r"file://G:/mc16_13TeV/AOD.16300985._000011.pool.root.1")
+f_multiple = EventDataset([r"file://G:/mc16_13TeV/AOD.16300985._000011.pool.root.1", r"file://G:/mc16_13TeV/AOD.16300985._000011.pool.root.1"])
+
 #f = EventDataset(r"file://C:/Users/gordo/Documents/mc16_13TeV/AOD.16300985._000011.pool.root.1")
 
 def test_select_first_of_array():
@@ -27,6 +29,15 @@ def test_select_first_of_array():
 def test_flatten_array():
     # A very simple flattening of arrays
     training_df = f \
+        .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
+        .Select('lambda j: j.pt()/1000.0') \
+        .AsPandasDF('JetPt') \
+        .value(executor=use_executor_xaod_docker)
+    assert int(training_df.iloc[0]['JetPt']) == 257
+
+def test_flatten_array_multiple():
+    # A very simple flattening of arrays
+    training_df = f_multiple \
         .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
         .Select('lambda j: j.pt()/1000.0') \
         .AsPandasDF('JetPt') \
