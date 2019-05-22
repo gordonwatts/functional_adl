@@ -118,27 +118,7 @@ class ObjectStream:
             return executor(self._ast)
 
 
-        # Ok - if we got here then we can't figure out how to run.
-        raise BaseException("Not implemented yet")
-    #     # Find the executor
-    #     exe_finder = find_executor()
-    #     exe_finder.visit(self._ast)
-    #     if len(exe_finder.executors) != 1:
-    #         raise BaseException(
-    #             "Unable to find a single, unique, executor for expression (found " + str(len(exe_finder.executors)) + ").")
-    #     exe = exe_finder.executors[0]
-
-    #     # Apply any local transformations required.
-    #     ast = exe.apply_ast_transformations(self._ast)
-
-    #     # Now, find the executor and send it the AST
-    #     return exe.evaluate(ast)
-
-# class find_executor(ast.NodeVisitor):
-#     def __init__(self):
-#         self.executors = []
-
-#     def generic_visit(self, node):
-#         if hasattr(node, "get_executor"):
-#             self.executors += [node.get_executor()]
-#         ast.NodeVisitor.generic_visit(self, node)
+        # By default we use the in-process docker executor which is, relatively speaking
+        # portable as long as you have docker installed.
+        from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docker
+        return use_executor_xaod_docker(self._ast)
