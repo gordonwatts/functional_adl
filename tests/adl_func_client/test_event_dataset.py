@@ -15,6 +15,19 @@ def test_good_url_with_options():
     'Note - these options are not necessarily valid!'
     _ = EventDataset('localds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795&nfiles=1')
 
+def test_good_file_urls():
+    _ = EventDataset(['file://test.root'])
+
+def test_good_grid_urls():
+    _ = EventDataset(['gridds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795'])
+
+def test_good_local_grid_ds_urls():
+    _ = EventDataset(['localds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795'])
+
+def test_good_urls_with_options():
+    'Note - these options are not necessarily valid!'
+    _ = EventDataset(['localds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795&nfiles=1'])
+
 def test_bad_url():
     try:
         _ = EventDataset('holyforkingshirtballs.root')
@@ -22,9 +35,23 @@ def test_bad_url():
         return
     assert False
 
+def test_bad_urls():
+    try:
+        _ = EventDataset(['file://data.root', 'holyforkingshirtballs.root'])
+    except:
+        return
+    assert False
+
 def test_empty_url():
     try:
         _ = EventDataset('')
+    except:
+        return
+    assert False
+
+def test_empty_urls():
+    try:
+        _ = EventDataset([])
     except:
         return
     assert False

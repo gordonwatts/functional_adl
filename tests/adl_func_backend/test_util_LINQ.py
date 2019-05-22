@@ -8,7 +8,7 @@ def test_find_EventDataSet_good():
     a = EventDataset("file://junk.root") \
         .value(executor=lambda a: a)
 
-    assert "file://junk.root" == find_dataset(a).url
+    assert ["file://junk.root"] == find_dataset(a).url
 
 def test_find_EventDataSet_none():
     a = ast.parse("a+b*2")
@@ -24,14 +24,14 @@ def test_find_EventDataset_Select():
         .Select("lambda x: x") \
         .value(executor=lambda a: a)
 
-    assert "file://dude.root" == find_dataset(a).url
+    assert ["file://dude.root"] == find_dataset(a).url
 
 def test_find_EventDataset_SelectMany():
     a = EventDataset("file://dude.root") \
         .SelectMany("lambda x: x") \
         .value(executor=lambda a: a)
 
-    assert "file://dude.root" == find_dataset(a).url
+    assert ["file://dude.root"] == find_dataset(a).url
 
 def test_find_EventDataset_Select_and_Many():
     a = EventDataset("file://dude.root") \
@@ -39,4 +39,4 @@ def test_find_EventDataset_Select_and_Many():
         .SelectMany("lambda x: x") \
         .value(executor=lambda a: a)
 
-    assert "file://dude.root" == find_dataset(a).url
+    assert ["file://dude.root"] == find_dataset(a).url
