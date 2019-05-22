@@ -5,7 +5,7 @@ atlas_subdir (analysis)
 atlas_add_library (analysisLib
   analysis/*.h Root/*.cxx
   PUBLIC_HEADERS analysis
-  LINK_LIBRARIES AnaAlgorithmLib xAODEventInfo xAODJet)
+  LINK_LIBRARIES AnaAlgorithmLib xAODEventInfo xAODJet xAODTruth xAODMissingET xAODMuon xAODEgamma)
 
 if (XAOD_STANDALONE)
  # Add the dictionary (for AnalysisBase only):
