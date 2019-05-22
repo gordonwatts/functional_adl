@@ -18,8 +18,8 @@ ROOT.xAOD.Init().ignore()
 import os
 sh = ROOT.SH.SampleHandler()
 sh.setMetaString( 'nc_tree', 'CollectionTree' )
-inputFilePath = '/data'
-ROOT.SH.ScanDir().filePattern( '{{data_file_name}}' ).scan( sh, inputFilePath )
+#ROOT.SH.ScanDir().filePattern( '{{df}}' ).scan( sh, inputFilePath )
+ROOT.SH.readFileList (sh, "ANALYSIS", "filelist.txt");
 sh.printContent()
 
 # Create an EventLoop job.

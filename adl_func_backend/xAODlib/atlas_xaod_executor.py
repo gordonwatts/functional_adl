@@ -678,7 +678,7 @@ class query_ast_visitor(ast.NodeVisitor):
         self._gc.add_book_statement(statement.book_ttree(tree_name, var_names))
 
         # Note that the output file and tree are what we are going to return.
-        node.rep = rh.cpp_ttree_rep("data.root", tree_name, self._gc.current_scope())
+        node.rep = rh.cpp_ttree_rep("ANALYSIS.root", tree_name, self._gc.current_scope())
 
         # For each varable we need to save, cache it or push it back, depending.
         # Make sure that it happens at the proper scope, where what we are after is defined!
@@ -925,12 +925,25 @@ class atlas_xaod_executor:
             os.chmod(local_run_dir, 0o777)
 
             # Parse the dataset. Eventually, this needs to be normalized, but for now.
-            (_, netloc, path, _, _, _) = urlparse(self._ds)
-            datafile = netloc + path
-            datafile_dir = os.path.dirname(datafile)
-            datafile_name = os.path.basename(datafile)
+            # Some current restrictions:
+            #   - Can only deal with files in the same directory due to the way we map them into our
+            #     docker containers
+            datafile_dir = None
+            with open(f'{local_run_dir}/filelist.txt', 'w') as flist_out:
+                for u in self._ds:
+                    (_, netloc, path, _, _, _) = urlparse(u)
+                    datafile = os.path.basename(netloc + path)
+                    flist_out.write(f'/data/{datafile}\n')
+
+                    if datafile_dir is None:
+                        datafile_dir = os.path.dirname(netloc+path)
+                    else:
+                        t = os.path.dirname(netloc+path)
+                        if t != datafile_dir:
+                            raise BaseException(f'Data files must be from the same directory. Have seen {t} and {datafile_dir} so far.')
+
+            # The replacement dict to pass to the template generator can now be filled
             info = {}
-            info['data_file_name'] = datafile_name
             info['query_code'] = query_code.lines_of_query_code()
             info['book_code'] = book_code.lines_of_query_code()
             info['class_dec'] = class_dec_code

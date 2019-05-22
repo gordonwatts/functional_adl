@@ -120,7 +120,9 @@ source x86_64-slc6-gcc62-opt/setup.sh
 
 # Do the run.
 #ATestRun_eljob.py --submission-dir=bogus
+cp /scripts/filelist.txt .
 python ../source/analysis/share/ATestRun_eljob.py --submission-dir=bogus
 
 # Place the output file where it belongs
-cp ./bogus/data-ANALYSIS/data.root /results
+find . -print
+cp ./bogus/data-ANALYSIS/ANALYSIS.root /results

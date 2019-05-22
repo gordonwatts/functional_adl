@@ -2,7 +2,7 @@
 
 # These are very long running do not run them normally!!
 import pytest
-pytestmark = pytest.mark.skipif(True, reason='Long running tests, skipped except when run by hand')
+#pytestmark = pytest.mark.skipif(True, reason='Long running tests, skipped except when run by hand')
 
 # These are *long* tests and so should not normally be run. Each test can take of order 30 seconds or so!!
 from adl_func_client.event_dataset import EventDataset
