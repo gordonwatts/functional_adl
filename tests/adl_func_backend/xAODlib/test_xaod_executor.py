@@ -124,7 +124,11 @@ def test_generate_binary_operators():
     # Make sure the binary operators work correctly - that they don't cause a crash in generation.
     ops = ['+','-','*','/']
     for o in ops:
-        EventDataset("file://root.root") \
+        r = EventDataset("file://root.root") \
             .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: j.pt(){0}1)'.format(o)) \
             .AsPandasDF(['JetInfo']) \
             .value(executor=exe_for_test)
+        lines = get_lines_of_code(r)
+        print_lines(lines)
+        _ = find_line_with(f"pt(){o}1", lines)
+
