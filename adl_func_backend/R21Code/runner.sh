@@ -124,5 +124,4 @@ cp /scripts/filelist.txt .
 python ../source/analysis/share/ATestRun_eljob.py --submission-dir=bogus
 
 # Place the output file where it belongs
-find . -print
 cp ./bogus/data-ANALYSIS/ANALYSIS.root /results
