@@ -549,9 +549,9 @@ class query_ast_visitor(ast.NodeVisitor):
         elif isinstance(node.op, ast.Div):
             r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
         elif isinstance(node.op, ast.Sub):
-            r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
+            r = crep.cpp_value("({0}-{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
         elif isinstance(node.op, ast.Mult):
-            r = crep.cpp_value("({0}/{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
+            r = crep.cpp_value("({0}*{1})".format(left.as_cpp(), right.as_cpp()), s, left.cpp_type())
         else:
             raise BaseException("Binary operator {0} is not implemented.".format(type(node.op)))
 
