@@ -700,8 +700,14 @@ class query_ast_visitor(ast.NodeVisitor):
                 self._gc.add_statement(statement.push_back(e_name[1], e_rep.sequence_value()))
             else:
                 self._gc.add_statement(statement.set_var(e_name[1], e_rep))
+                cs = self._gc.current_scope()
+                if cs.starts_with(scope_fill):
+                    scope_fill = cs
 
         # The fill statement. This should happen at the scope where the tuple was defined.
+        # The scope where this should be done is a bit tricky (note the update above):
+        # - If a sequence, you want it where the sequence iterator is defined - or outside that scope
+        # - If a value, you want it at the level where the value is set.
         self._gc.set_scope(scope_fill)
         self._gc.add_statement(statement.ttree_fill(tree_name))
         for e in zip(seq_values.values(), var_names):

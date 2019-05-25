@@ -45,7 +45,7 @@ def test_First_Of_Select_is_not_array():
     assert all("push_back" not in l for l in lines)
     l_fill = find_line_with("Fill()", lines)
     active_blocks = find_open_blocks(lines[:l_fill])
-    assert 0==[(("for" in a) or ("if" in a)) for a in active_blocks].count(True)
+    assert 3==[(("for" in a) or ("if" in a)) for a in active_blocks].count(True)
     l_set = find_line_with("_FirstJetPt", lines)
     active_blocks = find_open_blocks(lines[:l_set])
     assert 3==[(("for" in a) or ("if" in a)) for a in active_blocks].count(True)
