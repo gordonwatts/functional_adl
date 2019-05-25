@@ -34,15 +34,7 @@ def test_flatten_array():
         .AsPandasDF('JetPt') \
         .value(executor=use_executor_xaod_docker)
     assert int(training_df.iloc[0]['JetPt']) == 257
-
-def test_flatten_array_multiple():
-    # A very simple flattening of arrays
-    training_df = f_multiple \
-        .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
-        .Select('lambda j: j.pt()/1000.0') \
-        .AsPandasDF('JetPt') \
-        .value(executor=use_executor_xaod_docker)
-    assert int(training_df.iloc[0]['JetPt']) == 257
+    assert int(training_df.iloc[0]['JetPt']) != int(training_df.iloc[1]['JetPt'])
 
 def test_First_two_outer_loops():
     # THis is a little tricky because the First there is actually running over one jet in the event. Further, the Where
