@@ -207,6 +207,30 @@ def test_per_jet_with_matching_and_zeros():
     assert l_jetpt+1 == l_nllp
     assert l_nllp+1 == l_fill
 
+def test_per_jet_with_Count_matching():
+    # Trying to repro a bug we saw in the wild
+    # The problem is with the "Where" below, it gets moved way up to the top. If it is put near the top then the
+    # generated code is fine. In this case, where it is currently located, the code generated to look at the DeltaR particles
+    # is missed when calculating the y() component (for some reason). This bug may not be in the executor, but, rather, may
+    # be in the function simplifier.
+    # Also, if the "else" doesn't include a "first" thing, then things seem to work just fine too.
+    #        .Where('lambda jall: jall[0].pt() > 40.0') \
+    r = EventDataset("file://root.root") \
+        .Select('lambda e: (e.Jets("AntiKt4EMTopoJets"),e.TruthParticles("TruthParticles").Where(lambda tp1: tp1.pdgId() == 35))') \
+        .SelectMany('lambda ev: ev[0].Select(lambda j1: (j1, ev[1].Where(lambda tp2: DeltaR(tp2.eta(), tp2.phi(), j1.eta(), j1.phi()) < 0.4)))') \
+        .Select('lambda ji: (ji[0].pt(), 0 if ji[1].Count()==0 else ji[1].First().prodVtx().y())') \
+        .Where('lambda jall: jall[0] > 40.0') \
+        .AsPandasDF(('JetPts', 'y')) \
+        .value(executor=exe_for_test)
+    lines = get_lines_of_code(r)
+    print_lines(lines)
+    l_jetpt = find_line_with("_JetPts", lines)
+    l_nllp = find_line_with("_NumLLPs", lines)
+    l_fill = find_line_with("->Fill()", lines)
+    assert l_jetpt+1 == l_nllp
+    assert l_nllp+1 == l_fill
+    assert False
+
 def test_per_jet_with_matching_and_zeros_and_sum():
     # Trying to repro a bug we saw in the wild
     r = EventDataset("file://root.root") \
