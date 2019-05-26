@@ -3,6 +3,7 @@
 # for info on this next line. Already looking forward to python 4...
 from __future__ import annotations
 import copy
+from typing import Union
 
 def top_level_scope():
     '''
@@ -37,7 +38,7 @@ class gc_scope:
         'Declare a class at the scope level'
         self._scope_stack[-1].declare_variable(var)
 
-    def starts_with(self, c: gc_scope):
+    def starts_with(self, c: Union[gc_scope, gc_scope_top_level]):
         '''
         Return true if the scope c matches the first part of our scope. False otherwise.
         '''
@@ -61,6 +62,10 @@ class gc_scope_top_level:
         return True
     def __getitem__(self, key: int) -> gc_scope:
         raise BaseException("This should never be called. Internal error")
+    
+    def starts_with(self, c: Union[gc_scope, gc_scope_top_level]):
+        'Starts with can only be true for top level if the other guy is top level'
+        return type(c) is gc_scope_top_level
 
 def deepest_scope(v1, v2):
     '''

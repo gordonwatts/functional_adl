@@ -227,3 +227,6 @@ class cpp_sequence(cpp_rep_base):
 
     def as_cpp(self):
         raise BaseException("Do not know how to get the cpp rep of a sequence!")
+
+    def scope(self) -> Union[gc_scope, gc_scope_top_level]:
+        return self._sequence.scope()

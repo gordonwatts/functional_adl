@@ -141,11 +141,10 @@ class query_ast_visitor(ast.NodeVisitor):
         node - if the node has a rep, just return
 
         '''
+        r = ast.NodeVisitor.visit(self, node)
         if hasattr(node, 'rep'):
             self._result = node.rep
-            return
-        else:
-            return ast.NodeVisitor.visit(self, node)
+        return r
 
     def generic_visit(self, node):
         '''Visit a generic node. If the node already has a rep, then it has been
@@ -166,10 +165,23 @@ class query_ast_visitor(ast.NodeVisitor):
         reset_result - Reset the _result variable to this value if requested.
         retain_scope - If true, then the scope level will remain the same before and after the call.
         TODO: Make sure all these special options are needed
+
+        RULES for .rep: NEVER access it without using get_rep. It is fine, of course, if you are setting it as a result
+        of visiting. BUT ALWAYS GO THROUGH get_rep to get the rep for a node you aren't handling directly. If you ever find yourself
+        writing a "hasattr(node, 'rep')" you will almost certainly be introducing a bug. Use get_rep instead!!
         '''
+        # If the rep is present, make sure it is still valid by checking the scope.
+        result = None
+        if hasattr(node, 'rep'):
+            result = node.rep
+            if not self._gc.current_scope().starts_with(result.scope()):
+                if type(node) is crep.dummy_ast:
+                    raise BaseException("Internal Error - out of scope dummy ast!")
+                result = None
+
         # If this node already has a representation, then it has been
         # processed and we do not need to do it again.
-        if not hasattr(node, 'rep'):
+        if result is None:
             s = self._gc.current_scope() if retain_scope else None
             self.generic_visit(node) if use_generic_visit else self.visit(node)
             if retain_scope:

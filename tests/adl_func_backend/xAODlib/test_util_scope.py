@@ -5,7 +5,7 @@ from adl_func_backend.xAODlib.generated_code import generated_code
 import adl_func_backend.xAODlib.statement as statement
 import adl_func_backend.cpplib.cpp_types as ctyp
 import adl_func_backend.cpplib.cpp_representation as crep
-from adl_func_backend.xAODlib.util_scope import deepest_scope
+from adl_func_backend.xAODlib.util_scope import deepest_scope, gc_scope_top_level
 
 def test_deepest_scope_one_greater():
     g = generated_code()
@@ -34,3 +34,27 @@ def test_deepest_scope_equal():
 
     assert v1 == deepest_scope(v1, v2)
     assert v2 == deepest_scope(v2, v1)
+
+def test_everything_starts_with_top_level_scope():
+    top = gc_scope_top_level()
+    g = generated_code()
+    s1 = statement.iftest("true")
+    g.add_statement(s1)
+    scope_1 = g.current_scope()
+
+    assert scope_1.starts_with(top)
+
+def test_nothing_else_starts_with_top_level_scope():
+    top = gc_scope_top_level()
+    g = generated_code()
+    s1 = statement.iftest("true")
+    g.add_statement(s1)
+    scope_1 = g.current_scope()
+
+    assert not top.starts_with(scope_1)
+
+def test_top_level_starts_with_top_level():
+    top1 = gc_scope_top_level()
+    top2 = gc_scope_top_level()
+
+    assert top1.starts_with(top2)

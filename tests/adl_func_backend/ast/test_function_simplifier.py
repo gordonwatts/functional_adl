@@ -16,12 +16,15 @@ def util_process(ast_in, ast_out):
     a_source_linq = replace_LINQ_operators().visit(a_source)
     a_expected_linq = replace_LINQ_operators().visit(a_expected)
 
-    a_updated = simplify_chained_calls().visit(a_source_linq)
+    a_updated_raw = simplify_chained_calls().visit(a_source_linq)
 
-    s_updated = ast.dump(normalize_ast().visit(a_updated))
+    s_updated = ast.dump(normalize_ast().visit(a_updated_raw))
     s_expected = ast.dump(normalize_ast().visit(a_expected_linq))
 
+    print(s_updated)
+    print(s_expected)
     assert s_updated == s_expected
+    return a_updated_raw
 
 ################
 # Test convolutions
@@ -70,6 +73,24 @@ def test_where_first():
 def test_selectmany_simple():
     # SelectMany statement shouldn't be altered on its own.
     util_process("jets.SelectMany(lambda j: j.tracks)", "jets.SelectMany(lambda j: j.tracks)")
+
+def test_selectmany_where():
+    a = util_process("jets.SelectMany(lambda j: j.tracks).Select(lambda z: z.pt()).Where(lambda k: k>40)", "jets.SelectMany(lambda e: e.tracks.Where(lambda t: t.pt()>40).Select(lambda k: k.pt()))")
+    print(ast.dump(a))
+    # Make sure the z.pT() was a deep copy, not a shallow one.
+    zpt_first = a.body[0].value.selection.body.source.filter.body.left
+    zpt_second = a.body[0].value.selection.body.selection.body
+    assert zpt_first is not zpt_second
+    assert zpt_first.func is not zpt_second.func
+
+def test_selectmany_where():
+    a = util_process("jets.SelectMany(lambda j: j.tracks).Select(lambda z: z.pt()).Where(lambda k: k>40)", "jets.SelectMany(lambda e: e.tracks.Where(lambda t: t.pt()>40).Select(lambda k: k.pt()))")
+    print(ast.dump(a))
+    # Make sure the z.pT() was a deep copy, not a shallow one.
+    zpt_first = a.body[0].value.selection.body.source.filter.body.left
+    zpt_second = a.body[0].value.selection.body.selection.body
+    assert zpt_first is not zpt_second
+    assert zpt_first.func is not zpt_second.func
 
 ###############
 # Testing first

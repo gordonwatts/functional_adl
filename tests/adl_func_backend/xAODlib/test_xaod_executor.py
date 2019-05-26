@@ -214,7 +214,7 @@ def test_per_jet_with_Count_matching():
     # is missed when calculating the y() component (for some reason). This bug may not be in the executor, but, rather, may
     # be in the function simplifier.
     # Also, if the "else" doesn't include a "first" thing, then things seem to work just fine too.
-    #        .Where('lambda jall: jall[0].pt() > 40.0') \
+    #    .Where('lambda jall: jall[0].pt() > 40.0') \
     r = EventDataset("file://root.root") \
         .Select('lambda e: (e.Jets("AntiKt4EMTopoJets"),e.TruthParticles("TruthParticles").Where(lambda tp1: tp1.pdgId() == 35))') \
         .SelectMany('lambda ev: ev[0].Select(lambda j1: (j1, ev[1].Where(lambda tp2: DeltaR(tp2.eta(), tp2.phi(), j1.eta(), j1.phi()) < 0.4)))') \
@@ -224,12 +224,8 @@ def test_per_jet_with_Count_matching():
         .value(executor=exe_for_test)
     lines = get_lines_of_code(r)
     print_lines(lines)
-    l_jetpt = find_line_with("_JetPts", lines)
-    l_nllp = find_line_with("_NumLLPs", lines)
-    l_fill = find_line_with("->Fill()", lines)
-    assert l_jetpt+1 == l_nllp
-    assert l_nllp+1 == l_fill
-    assert False
+    l = find_line_numbers_with("if (0)", lines)
+    assert len(l) == 0
 
 def test_per_jet_with_matching_and_zeros_and_sum():
     # Trying to repro a bug we saw in the wild
