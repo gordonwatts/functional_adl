@@ -227,6 +227,22 @@ def test_per_jet_with_Count_matching():
     l = find_line_numbers_with("if (0)", lines)
     assert len(l) == 0
 
+def test_per_jet_with_delta():
+    # Trying to repro a bug we saw in the wild
+    r = EventDataset("file://root.root") \
+        .Select('lambda e: (e.Jets("AntiKt4EMTopoJets"),e.TruthParticles("TruthParticles").Where(lambda tp1: tp1.pdgId() == 35))') \
+        .SelectMany('lambda ev: ev[0].Select(lambda j1: (j1, ev[1].Where(lambda tp2: DeltaR(tp2.eta(), tp2.phi(), j1.eta(), j1.phi()) < 0.4)))') \
+        .Select('lambda ji: (ji[0].pt(), 0 if ji[1].Count()==0 else abs(ji[1].First().prodVtx().x()-ji[1].First().decayVtx().x()))') \
+        .Where('lambda jall: jall[0] > 40.0') \
+        .AsPandasDF(('JetPts', 'y')) \
+        .value(executor=exe_for_test)
+    lines = get_lines_of_code(r)
+    print_lines(lines)
+    l_numbers = find_line_numbers_with("if (i_obj", lines)
+    for line in [lines[ln] for ln in l_numbers]:
+        assert "x()" not in line
+    assert False
+
 def test_per_jet_with_matching_and_zeros_and_sum():
     # Trying to repro a bug we saw in the wild
     r = EventDataset("file://root.root") \

@@ -152,10 +152,7 @@ class query_ast_visitor(ast.NodeVisitor):
 
         node - If the node has a rep, do not visit it.
     '''
-        if hasattr(node, 'rep'):
-            return
-        else:
-            return ast.NodeVisitor.generic_visit(self, node)
+        return ast.NodeVisitor.generic_visit(self, node)
 
     def get_rep(self, node, use_generic_visit = False, reset_result = None, retain_scope = False) -> Union[crep.cpp_value, crep.cpp_sequence]:
         r'''Return the rep for the node. If it isn't set yet, then run our visit on it.
@@ -187,13 +184,15 @@ class query_ast_visitor(ast.NodeVisitor):
             if retain_scope:
                 self._gc.set_scope(s)
 
+        # If it still didn't work, this is an internal error. But make the error message a bit nicer.
+        if not hasattr(node, 'rep'):
+            raise BaseException('Internal Error: attempted to get C++ representation for AST note "{0}", but failed.'.format(ast.dump(node)))
+        self._result = node.rep
+
         # Reset the result
         if reset_result is not None:
             self._result = reset_result
 
-        # If it still didn't work, this is an internal error. But make the error message a bit nicer.
-        if not hasattr(node, 'rep'):
-            raise BaseException('Internal Error: attempted to get C++ representation for AST note "{0}", but failed.'.format(ast.dump(node)))
         return node.rep
 
     def get_rep_value(self, node, use_generic_visit = False, reset_result = None, retain_scope = False) -> crep.cpp_value:
