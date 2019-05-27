@@ -172,8 +172,8 @@ class query_ast_visitor(ast.NodeVisitor):
         if hasattr(node, 'rep'):
             result = node.rep
             if not self._gc.current_scope().starts_with(result.scope()):
-                if type(node) is crep.dummy_ast:
-                    raise BaseException("Internal Error - out of scope dummy ast!")
+                # if type(node) is crep.dummy_ast:
+                #     raise BaseException("Internal Error - out of scope dummy ast!")
                 result = None
 
         # If this node already has a representation, then it has been
@@ -248,9 +248,16 @@ class query_ast_visitor(ast.NodeVisitor):
         if isinstance(rep, crep.cpp_sequence):
             return rep
 
+        # Next do a lookup to see if we have already defined a sequence at this level
+        r = self._gc.get_rep(rep)
+        if r is not None:
+            return r
+
         # If this is a collection, then we need to turn it into a sequence.
         if isinstance(rep, crep.cpp_collection):
-            return self.make_sequence_from_collection(rep)
+            r = self.make_sequence_from_collection(rep)
+            self._gc.set_rep(rep, r)
+            return r
 
         # If it isn't a sequence or a collection, then something has gone wrong.
         raise BaseException("Unable to generate a sequence from the given AST. Either there is an internal error, or you are trying to manipulate a '{0}' as a sequence (ast is: {1})".format(type(rep).__name__, ast.dump(generation_ast)))

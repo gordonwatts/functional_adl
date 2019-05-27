@@ -20,6 +20,15 @@ class generated_code:
         'Declare a variable at the current scope'
         self._scope_stack[-1].declare_variable(v)
 
+    def get_rep(self, name):
+        'Get a representation that has been defined on the stack'
+        items = (rep for rep in (s.get_rep(name) for s in reversed(self._scope_stack)) if rep is not None)
+        return next(items, None)
+
+    def set_rep(self, name, value):
+        'Set a representation for later recall'
+        self._scope_stack[-1].set_rep(name, value)
+
     def add_statement(self, st, below = None):
         '''
         Add a statement. By default it is added to whereever the current

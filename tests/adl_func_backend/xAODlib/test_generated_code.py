@@ -44,3 +44,37 @@ def test_insert_in_middle():
 
     assert s1._statements[0] is s3
     assert s3._statements[0] is s2
+
+def test_get_rep_null():
+    g = generated_code()
+    assert None is g.get_rep("hi")
+
+def test_get_rep_when_set():
+    g = generated_code()
+    g.set_rep("dude", 5)
+    assert 5 is g.get_rep("dude")
+
+def test_get_rep_when_set_level_up():
+    g = generated_code()
+    g.set_rep("dude", 5)
+    s1 = statement.iftest("true")
+    g.add_statement(s1)
+    assert 5 is g.get_rep("dude")
+
+def test_get_rep_works_and_doesnt():
+    g = generated_code()
+    s1 = statement.iftest("true")
+    g.set_rep("dude", 5)
+    assert 5 is g.get_rep("dude")
+    g.pop_scope()
+    assert None is g.get_rep("dude")
+
+def test_get_rep_hidden():
+    g = generated_code()
+    g.set_rep("dude", 5)
+    s1 = statement.iftest("true")
+    g.add_statement(s1)
+    g.set_rep("dude", 10)
+    assert 10 is g.get_rep("dude")
+    g.pop_scope()
+    assert 5 is g.get_rep("dude")

@@ -241,7 +241,6 @@ def test_per_jet_with_delta():
     l_numbers = find_line_numbers_with("if (i_obj", lines)
     for line in [lines[ln] for ln in l_numbers]:
         assert "x()" not in line
-    assert False
 
 def test_per_jet_with_matching_and_zeros_and_sum():
     # Trying to repro a bug we saw in the wild

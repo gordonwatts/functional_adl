@@ -1,5 +1,11 @@
 # Statements
+from __future__ import annotations
 import adl_func_backend.cpplib.cpp_representation as crep
+from typing import Any, Optional
+
+class BlockException (BaseException):
+    def __init__ (self, message):
+        BaseException.__init__(self, message)
 
 class block:
     'This is a bock of statements surrounded by a scoping (like open close bracket, for loop, etc.)'
@@ -7,6 +13,7 @@ class block:
     def __init__(self):
         self._statements = []
         self._variables = []
+        self._rep_dict = {}
 
     def add_statement(self, s):
         'Add statement s to the list of statements'
@@ -25,6 +32,33 @@ class block:
         for s in self._statements:
             s.emit(e)
         e.add_line("}")
+
+    def get_rep(self, name: Any) -> Any:
+        '''Return the representation for some object. If we do not know its value
+        then ask our parent for the value. Return None if we can't find it.
+
+        Args:
+            name:           Key for lookup
+
+        Returns:
+            None if there is nothing defined with that key in the hierarchy, or
+            an actual value if there is.
+        '''
+        if name in self._rep_dict:
+            return self._rep_dict[name]
+        return None
+
+    def set_rep(self, name: Any, value: Any):
+        '''Defines the `value` for a lookup of `name` at any time in this block and
+        below.
+
+        Args:
+            name:       The lookup key
+            value       The value to be cached
+        '''
+        if name in self._rep_dict:
+            raise BlockException(f'Internal Error: Representation for {str(name)} already exists. Cannot set twice')
+        self._rep_dict[name] = value
 
 class loop(block):
     'A for loop'
