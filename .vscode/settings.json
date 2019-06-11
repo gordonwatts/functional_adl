@@ -32,6 +32,7 @@
         "pytestmark",
         "rucio",
         "skipif",
+        "ulist",
         "xaod"
     ],
     "python.autoComplete.addBrackets": true

@@ -59,11 +59,30 @@ def resolve_local_ds_url(url: str) -> Optional[List[str]]:
     raise GridDsException(f'Do not know how to resolve dataset of type {parsed.scheme} from url {url}.')
     
 
+class dataset_finder (ast.NodeTransformer):
+    'Any event datasets are resolved to be local.'
+    def __init__ (self):
+        'Dataset Locally Resolved becomes true only if all datasets are local.'
+        self.DatasetsLocallyResolves = False
+    def visit_EventDataset(self, node: EventDataset):
+        '''
+        Look at the URL's for the event dataset. Try to replace them with
+        files that have been downloaded locally, if we can.
+        '''
+        # Resolve all the url's
+        resolved_urls = [resolve_local_ds_url(u) for u in node.url]
+
+        # If any None's, then we aren't ready to go.
+        if any(u is None for u in resolved_urls):
+            return node
+
+        u_list = [u for ulist in resolved_urls for u in ulist]
+        if len(u_list) == 0:
+            raise GridDsException(f'Resolving the dataset urls {node.url} gave the empty list of files')
+
+        # All good! Create a new event dataset!
+        self.DatasetsLocallyResolves = True
+        return EventDataset(u_list)
+
 def use_executor_dataset_resolver(a: ast.AST):
-    class dataset_finder (ast.NodeTransformer):
-        def visit_EventDataset(self, node: EventDataset):
-            '''
-            Look at the URL's for the event dataset. Try to replace them with
-            files that have been downloaded locally, if we can.
-            '''
     pass

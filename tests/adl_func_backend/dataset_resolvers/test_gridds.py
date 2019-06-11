@@ -1,5 +1,6 @@
 # Test out the grid dataset resolver code
-from adl_func_backend.dataset_resolvers.gridds import resolve_local_ds_url, GridDsException
+from adl_func_backend.dataset_resolvers.gridds import resolve_local_ds_url, GridDsException, dataset_finder
+from adl_func_client.event_dataset import EventDataset
 from tempfile import NamedTemporaryFile
 import pytest
 from unittest.mock import Mock
@@ -86,7 +87,24 @@ def test_ds_no_exist(no_exist_present_ds):
         assert False
     except GridDsException:
         pass
+
+def test_event_dataset_not_ready(downloading_present_ds):
+    url = 'localds://bogus2'
+    eds = EventDataset(url)
+    resolver = dataset_finder()
+    r = resolver.visit(eds)
+    assert r is eds
+    assert resolver.DatasetsLocallyResolves is False
     
+def test_event_dataset_ready(already_present_ds):
+    url = 'localds://bogus2'
+    eds = EventDataset(url)
+    resolver = dataset_finder()
+    r = resolver.visit(eds)
+    assert r is not eds
+    assert resolver.DatasetsLocallyResolves is True
+    assert len(r.url) == 7
+
 # Weird schemes
 def test_weird_url_scheme():
     url = 'bogus://dataset_du_jour'
