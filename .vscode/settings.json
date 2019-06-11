@@ -30,6 +30,7 @@
         "nfiles",
         "pytest",
         "pytestmark",
+        "rucio",
         "skipif",
         "xaod"
     ],

@@ -47,8 +47,12 @@ def resolve_local_ds_url(url: str) -> Optional[List[str]]:
         ds = parsed.netloc
         r = requests.post(f'http://localhost:8000/ds?ds_name={ds}')
         result = r.json()
-        if result['status'] != 'local':
-            return [url]
+        if result['status'] is 'downloading':
+            return None
+        if result['status'] is 'does_not_exist':
+            raise GridDsException(f'Dataset {url} does not exist and cannot be downloaded locally.')
+
+        # Turn these into file url's, relative to the file location returned.
         return [f'file://{f}' for f in result['filelist']]
 
     # If we are here, then we don't know what to do.
