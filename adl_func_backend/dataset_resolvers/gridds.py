@@ -7,6 +7,8 @@ import os
 import errno
 from typing import List, Optional
 import requests
+from time import sleep
+from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docker
 
 # We use this here so we can mock things for testing
 
@@ -53,7 +55,7 @@ def resolve_local_ds_url(url: str) -> Optional[List[str]]:
             raise GridDsException(f'Dataset {url} does not exist and cannot be downloaded locally.')
 
         # Turn these into file url's, relative to the file location returned.
-        return [f'file://{f}' for f in result['filelist']]
+        return [f for f in result['filelist']]
 
     # If we are here, then we don't know what to do.
     raise GridDsException(f'Do not know how to resolve dataset of type {parsed.scheme} from url {url}.')
@@ -85,4 +87,16 @@ class dataset_finder (ast.NodeTransformer):
         return EventDataset(u_list)
 
 def use_executor_dataset_resolver(a: ast.AST):
-    pass
+    'Run - keep re-doing query until we crash or we can run'
+    finder = dataset_finder()
+    am = None
+    while not finder.DatasetsLocallyResolves:
+        am = finder.visit(a)
+        if finder.DatasetsLocallyResolves:
+            break
+        sleep(5*60)
+    
+    # Ok, we have a modified AST and we can now get it processed.
+    if am is None:
+        raise BaseException("internal programming error - resolved AST should not be null")
+    return use_executor_xaod_docker(am)
