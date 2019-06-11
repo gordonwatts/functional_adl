@@ -6,6 +6,9 @@ from urllib import parse
 import os
 import errno
 from typing import List, Optional
+import requests
+
+# We use this here so we can mock things for testing
 
 class GridDsException (BaseException):
     'Thrown when an error occurs going after a grid dataset of some sort'
@@ -41,7 +44,12 @@ def resolve_local_ds_url(url: str) -> Optional[List[str]]:
 
     # If it is a local dataset, try to resolve it.
     if parsed.scheme == 'localds':
-        raise BaseException('not implemented yet')
+        ds = parsed.netloc
+        r = requests.post(f'http://localhost:8000/ds?ds_name={ds}')
+        result = r.json()
+        if result['status'] != 'local':
+            return [url]
+        return [f'file://{f}' for f in result['filelist']]
 
     # If we are here, then we don't know what to do.
     raise GridDsException(f'Do not know how to resolve dataset of type {parsed.scheme} from url {url}.')

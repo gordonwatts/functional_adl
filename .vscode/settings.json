@@ -32,5 +32,6 @@
         "pytestmark",
         "skipif",
         "xaod"
-    ]
+    ],
+    "python.autoComplete.addBrackets": true
 }
