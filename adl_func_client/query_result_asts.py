@@ -7,7 +7,7 @@ class ResultTTree(ast.AST):
     An AST node that transforms a iterator into a TTree file.
     '''
 
-    def __init__(self, source, column_names):
+    def __init__(self, source=None, column_names=None):
         r'''
         Initialize the resultTTree AST node.
 
@@ -25,7 +25,7 @@ class ResultPandasDF(ast.AST):
     data format - for example, it needs to be a flat array.
     '''
 
-    def __init__(self, source, column_names):
+    def __init__(self, source=None, column_names=None):
         r'''
         Initialize the pandas df AST node.
 
@@ -42,7 +42,7 @@ class ResultAwkwardArray(ast.AST):
     coming into us as an awkward array.
     '''
 
-    def __init__(self, source, column_names):
+    def __init__(self, source=None, column_names=None):
         r'''
         Initialize the awkward array AST node.
 

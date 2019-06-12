@@ -55,3 +55,11 @@ def test_empty_urls():
     except:
         return
     assert False
+
+def test_EDS_pickle():
+    import pickle
+
+    b = pickle.dumps(EventDataset("file://root.root"))
+    o = pickle.loads(b)
+
+    assert len(o.url) == 1
