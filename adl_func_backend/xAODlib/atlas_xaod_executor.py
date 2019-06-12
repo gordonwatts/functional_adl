@@ -1021,3 +1021,9 @@ def use_executor_xaod_docker(a: ast.AST):
     # Use the dummy executor to process this, and return it.
     exe = atlas_xaod_executor(file.url)
     return exe.evaluate(exe.apply_ast_transformations(a))
+
+def use_executor_xaod_hash_cache(a: ast.AST):
+    'Write out the C++ code and supporting files to a cache'
+    import hashlib
+    hash = hashlib.md5(bytearray().extend(map(ord, ast.dump(a)))
+    
