@@ -6,6 +6,10 @@
 # Setup and config
 source /home/atlas/release_setup.sh
 
+# Remember where we are and the script location.
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+local=`pwd`
+
 # Create a release directory
 mkdir rel
 cd rel
@@ -80,12 +84,12 @@ mkdir analysis/src/components
 mkdir analysis/share
 
 # Create the basics for cmake
-cp /scripts/package_CMakeLists.txt analysis/CMakeLists.txt
+cp $DIR/package_CMakeLists.txt analysis/CMakeLists.txt
 
 # Next, copy over the algorithm. The source directory needs to be correctly mounted.
-cp /scripts/query.h analysis/analysis
-cp /scripts/query.cxx analysis/Root
-cp /scripts/ATestRun_eljob.py analysis/share
+cp $DIR/query.h analysis/analysis
+cp $DIR/query.cxx analysis/Root
+cp $DIR/ATestRun_eljob.py analysis/share
 chmod +x analysis/share/ATestRun_eljob.py
 
 cat > analysis/analysis/queryDict.h << EOF
@@ -120,7 +124,11 @@ source x86_64-slc6-gcc62-opt/setup.sh
 
 # Do the run.
 #ATestRun_eljob.py --submission-dir=bogus
-cp /scripts/filelist.txt .
+if [ -e $DIR/filelist.txt ]; then
+   cp $DIR/filelist.txt .
+else
+   cp $local/filelist.txt .
+fi
 python ../source/analysis/share/ATestRun_eljob.py --submission-dir=bogus
 
 # Place the output file where it belongs
