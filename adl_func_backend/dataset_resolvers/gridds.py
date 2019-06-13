@@ -8,7 +8,7 @@ import errno
 from typing import List, Optional
 import requests
 from time import sleep
-from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docker
+from adl_func_backend.xAODlib.exe_atlas_xaod_docker import use_executor_xaod_docker
 
 # We use this here so we can mock things for testing
 
