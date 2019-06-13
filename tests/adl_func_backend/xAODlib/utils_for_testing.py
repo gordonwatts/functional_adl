@@ -5,14 +5,22 @@ from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 from adl_func_backend.cpplib.cpp_representation import cpp_variable, cpp_sequence
 from adl_func_backend.xAODlib.util_scope import top_level_scope
 from adl_func_backend.util_LINQ import find_dataset
+from adl_func_backend.xAODlib.ast_to_cpp_translator import query_ast_visitor
+
 import ast
 
 
-class dummy_executor(atlas_xaod_executor):
+class dummy_executor:
     'Override the docker part of the execution engine'
     def __init__ (self):
         self.QueryVisitor = None
         self.ResultRep = None
+
+    def evaluate(self, a: ast.AST):
+        rnr = atlas_xaod_executor()
+        self.QueryVisitor = query_ast_visitor()
+        self.ResultRep = self.QueryVisitor.get_rep(rnr.apply_ast_transformations(a))
+        
 
     def get_result(self, q_visitor, result_rep):
         'Got the result. Cache for use in tests'
@@ -29,7 +37,8 @@ def exe_for_test(a: ast.AST):
 
     # Use the dummy executor to process this, and return it.
     exe = dummy_executor()
-    exe.evaluate(exe.apply_ast_transformations(a))
+    rnr = atlas_xaod_executor()
+    exe.evaluate(rnr.apply_ast_transformations(a))
     return exe
 
 class dummy_emitter:
