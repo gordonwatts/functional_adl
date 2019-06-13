@@ -1,9 +1,15 @@
-# Build image capable of processing a xAOD file all in-process given some sort of AST somehow.
+# Build image that has all the software to convert AST's to C++ code
 
-FROM atlas/analysisbase:21.2.62
+# Based on a python3 - latest.
+FROM python:3
 
-# Next, install python3 (without killing python 2)
-#RUN sudo yum -y install python34
-#RUN sudo yum -y install python34-pip
-RUN curl -O https://www.python.org/ftp/python/3.7.3/Python-3.7.3.tgz; tar xf Python-3.7.3.tgz
-RUN source /home/atlas/release_setup.sh; cd Python-3.7.3; ./configure --enable-optimizations; make; sudo make install
+WORKDIR /usr/src/app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Get over the source code
+COPY adl_func_backend/ ./adl_func_backend
+COPY adl_func_client/ ./adl_func_client
+COPY tools/ .
+
+CMD ["/bin/bash"]
