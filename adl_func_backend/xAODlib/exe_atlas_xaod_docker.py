@@ -1,6 +1,4 @@
 # Use an in-process docker container to do the actual execution work.
-import adl_func_backend.cpplib.cpp_representation as crep
-from adl_func_backend.xAODlib.util_scope import top_level_scope
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 import adl_func_backend.xAODlib.result_handlers as rh
 
@@ -26,12 +24,6 @@ def use_executor_xaod_docker(a: ast.AST):
     '''
     Execute a query on the local machine, in a docker container.
     '''
-    # Setup the rep for this filter
-    from adl_func_backend.util_LINQ import find_dataset
-    file = find_dataset(a)
-    iterator = crep.cpp_variable("bogus-do-not-use", top_level_scope(), cpp_type=None)
-    file.rep = crep.cpp_sequence(iterator, iterator)
-
     # Construct the files we will run.
     with tempfile.TemporaryDirectory() as local_run_dir:
         os.chmod(local_run_dir, 0o777)
@@ -44,7 +36,7 @@ def use_executor_xaod_docker(a: ast.AST):
         # on file locations.
         datafile_dir = None
         with open(f'{local_run_dir}/filelist.txt', 'w') as flist_out:
-            for u in file.url:
+            for u in f_spec.input_urls:
                 (_, netloc, path, _, _, _) = urlparse(u)
                 datafile = os.path.basename(netloc + path)
                 flist_out.write(f'/data/{datafile}\n')

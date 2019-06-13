@@ -12,8 +12,10 @@ from adl_func_backend.ast.aggregate_shortcuts import aggregate_node_transformer
 from adl_func_backend.cpplib.cpp_functions import find_known_functions
 import adl_func_backend.cpplib.cpp_ast as cpp_ast
 from adl_func_backend.xAODlib.ast_to_cpp_translator import query_ast_visitor
+import adl_func_backend.cpplib.cpp_representation as crep
+from adl_func_backend.xAODlib.util_scope import top_level_scope
 
-xAODExecutionInfo = namedtuple('xAODExecutionInfo', 'result_rep output_path main_script all_filenames')
+xAODExecutionInfo = namedtuple('xAODExecutionInfo', 'input_urls result_rep output_path main_script all_filenames')
 
 class cpp_source_emitter:
     r'''
@@ -81,6 +83,12 @@ class atlas_xaod_executor:
         the input files.
         """
 
+        # Find the base file dataset and mark it.
+        from adl_func_backend.util_LINQ import find_dataset
+        file = find_dataset(ast)
+        iterator = crep.cpp_variable("bogus-do-not-use", top_level_scope(), cpp_type=None)
+        file.rep = crep.cpp_sequence(iterator, iterator)
+
         # Visit the AST to generate the code structure and find out what the
         # result is going to be.
         qv = query_ast_visitor()
@@ -116,4 +124,4 @@ class atlas_xaod_executor:
         os.chmod(os.path.join(str(output_path), 'runner.sh'), 0o755)
 
         # Build the return object.
-        return xAODExecutionInfo(result_rep, output_path, 'runner.sh', ['ATestRun_eljob.py', 'package_CMakeLists.txt', 'query.cxx', 'query.h', 'runner.sh'])
+        return xAODExecutionInfo(file.url, result_rep, output_path, 'runner.sh', ['ATestRun_eljob.py', 'package_CMakeLists.txt', 'query.cxx', 'query.h', 'runner.sh'])
