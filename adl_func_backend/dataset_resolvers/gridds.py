@@ -10,7 +10,30 @@ import requests
 from time import sleep
 from adl_func_backend.xAODlib.exe_atlas_xaod_docker import use_executor_xaod_docker
 
+# Resolvers:
+def resolve_file(parsed_url, url:str):
+    l = f'{parsed_url.netloc}{parsed_url.path}'
+    if not os.path.exists(l):
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), l)
+    return [url]
+
+def resolve_localds(parsed_url, url:str):
+    ds = parsed_url.netloc
+    r = requests.post(f'http://localhost:8000/ds?ds_name={ds}')
+    result = r.json()
+    if result['status'] is 'downloading':
+        return None
+    if result['status'] is 'does_not_exist':
+        raise GridDsException(f'Dataset {url} does not exist and cannot be downloaded locally.')
+
+    # Turn these into file url's, relative to the file location returned.
+    return [f for f in result['filelist']]
+
 # We use this here so we can mock things for testing
+resolve_callbacks = {
+    'file': resolve_file,
+    'localds': resolve_localds
+}
 
 class GridDsException (BaseException):
     'Thrown when an error occurs going after a grid dataset of some sort'
@@ -37,25 +60,9 @@ def resolve_local_ds_url(url: str) -> Optional[List[str]]:
     '''
     parsed = parse.urlparse(url)
 
-    # If it is a file, then this is pretty trivial.
-    if parsed.scheme == 'file':
-        l = f'{parsed.netloc}{parsed.path}'
-        if not os.path.exists(l):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), l)
-        return [url]
-
-    # If it is a local dataset, try to resolve it.
-    if parsed.scheme == 'localds':
-        ds = parsed.netloc
-        r = requests.post(f'http://localhost:8000/ds?ds_name={ds}')
-        result = r.json()
-        if result['status'] is 'downloading':
-            return None
-        if result['status'] is 'does_not_exist':
-            raise GridDsException(f'Dataset {url} does not exist and cannot be downloaded locally.')
-
-        # Turn these into file url's, relative to the file location returned.
-        return [f for f in result['filelist']]
+    # Run resolver callbacks.
+    if parsed.scheme in resolve_callbacks:
+        return resolve_callbacks[parsed.scheme](parsed, url)
 
     # If we are here, then we don't know what to do.
     raise GridDsException(f'Do not know how to resolve dataset of type {parsed.scheme} from url {url}.')
@@ -86,7 +93,7 @@ class dataset_finder (ast.NodeTransformer):
         self.DatasetsLocallyResolves = True
         return EventDataset(u_list)
 
-def use_executor_dataset_resolver(a: ast.AST):
+def use_executor_dataset_resolver(a: ast.AST, chained_executor=use_executor_xaod_docker):
     'Run - keep re-doing query until we crash or we can run'
     finder = dataset_finder()
     am = None
@@ -99,4 +106,4 @@ def use_executor_dataset_resolver(a: ast.AST):
     # Ok, we have a modified AST and we can now get it processed.
     if am is None:
         raise BaseException("internal programming error - resolved AST should not be null")
-    return use_executor_xaod_docker(am)
+    return chained_executor(am)
