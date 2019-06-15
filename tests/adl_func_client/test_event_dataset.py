@@ -1,9 +1,53 @@
 # Test that the event dataset works correctly.
 
-from adl_func_client.event_dataset import EventDataset
+from adl_func_client.event_dataset import EventDataset, EventDatasetURLException
 
-def test_good_file_url():
-    _ = EventDataset('file://test.root')
+def test_good_file_url_bad_form():
+    e = EventDataset('file://test.root')
+    assert e.url is not None
+    assert len(e.url) == 1
+    assert e.url[0] == 'file:///test.root'
+
+def test_good_file_url_good_form():
+    e = EventDataset('file:///test.root')
+    assert e.url is not None
+    assert len(e.url) == 1
+    assert e.url[0] == 'file:///test.root'
+
+def test_good_file_url_good_form_with_subdir():
+    e = EventDataset('file:///sub/test.root')
+    assert e.url is not None
+    assert len(e.url) == 1
+    assert e.url[0] == 'file:///sub/test.root'
+
+def test_good_file_url_bad_form_with_subdir():
+    e = EventDataset('file://sub/test.root')
+    assert e.url is not None
+    assert len(e.url) == 1
+    assert e.url[0] == 'file:///sub/test.root'
+
+def test_good_file_url_good_form_with_host_local():
+    e = EventDataset('file://localhost/test.root')
+    assert e.url is not None
+    assert len(e.url) == 1
+    assert e.url[0] == 'file:///test.root'
+
+# TODO:
+# These are both illegal for us, but I don't know how to detect them without some weird
+# heuristics and also deal with malformed urls like file://path.
+# def test_good_file_url_good_form_with_host_dns():
+#     try:
+#         EventDataset('file://www.nytimes.com/test.root')
+#         assert False
+#     except EventDatasetURLException:
+#         return
+
+# def test_good_file_url_good_form_with_host_ip():
+#     try:
+#         EventDataset('file://192.168.1.23/test.root')
+#         assert False
+#     except EventDatasetURLException:
+#         return
 
 def test_good_grid_url():
     _ = EventDataset('gridds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795')
@@ -17,6 +61,9 @@ def test_good_url_with_options():
 
 def test_good_file_urls():
     _ = EventDataset(['file://test.root'])
+
+def test_root_good_file_urls():
+    _ = EventDataset(['file:///data/test.root'])
 
 def test_good_grid_urls():
     _ = EventDataset(['gridds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10201_r10210_p3795'])

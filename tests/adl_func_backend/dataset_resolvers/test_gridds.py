@@ -10,14 +10,14 @@ import tempfile
 def test_local_ds_good():
     with NamedTemporaryFile() as f:
         f.write(b'hi')
-        url = f'file://{f.name}'
+        url = f'file:///{f.name}'
         r = resolve_local_ds_url(url)
         assert r is not None
         assert len(r) == 1
         assert r[0] == url
 
 def test_local_ds_notfound():
-    url = 'file://bogus.root'
+    url = 'file:///bogus.root'
     try:
         resolve_local_ds_url(url)
         assert False
@@ -31,7 +31,14 @@ def already_present_ds(monkeypatch):
     status_mock = Mock()
     push_mock.return_value = status_mock
     monkeypatch.setattr('requests.post', push_mock)
-    status_mock.json.return_value={'status': 'local', 'filelist': ['file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000001.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000002.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000003.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000004.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000005.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000006.pool.root.1', 'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000007.pool.root.1']}
+    status_mock.json.return_value={'status': 'local', 'filelist': [
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000001.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000002.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000003.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000004.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000005.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000006.pool.root.1',
+            'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._000007.pool.root.1']}
     return push_mock
 
 @pytest.fixture
@@ -66,10 +73,10 @@ def test_ds_good(already_present_ds):
     assert r is not None
     assert len(r) == 7
     for i in range(1,7):
-            assert f'file://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._00000{i}.pool.root.1' in r
+            assert f'file:///mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795/DAOD_EXOT15.17545510._00000{i}.pool.root.1' in r
 
 def test_df_good(local_ds_file):
-        url = f'file://{local_ds_file}'
+        url = f'file:///{local_ds_file}'
         r = resolve_local_ds_url(url)
         assert r is not None
         assert len(r) == 1

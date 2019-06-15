@@ -13,7 +13,7 @@ def translate_ast_to_cpp(ast_filename:str, output_path:str):
     a = None
     with open(ast_filename, 'rb') as f:
         a = pickle.load(f)
-    if (a is None) or isinstance(a, type(ast.AST)):
+    if (a is None) or not issubclass(a, type(ast.AST)):
         print (f'The ast file {ast_filename} did not contain an ast object!')
         return
 

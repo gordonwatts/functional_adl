@@ -11,6 +11,22 @@ class EventDatasetURLException (BaseException):
     def __init__ (self, message):
         BaseException.__init__(self, message)
 
+def fixup_url(url:str, parsed_url) -> str:
+    'Fix up the url if we need to normalize anything'
+    if parsed_url.scheme != 'file':
+        return url
+
+    # For file, we need to deal with file://path and file:///path.
+    # If netloc is something we can quickly recognize as a local path or empty, then this url is in good shape.
+    if len(parsed_url.netloc) == 0 or parsed_url.netloc == 'localhost':
+        return f'file://{parsed_url.path}'
+
+    # Assume that netloc was part of the path.
+    path = parsed_url.netloc
+    if len(parsed_url.path) > 0:
+        path = path + parsed_url.path
+    return f'file:///{path}'
+
 class EventDataset(ObjectStream, ast.AST):
     r'''
     The URL for an event dataset. 
@@ -30,19 +46,21 @@ class EventDataset(ObjectStream, ast.AST):
             # Normalize the URL as a list
             if isinstance(url, str):
                 url = [url]
-            url = list(url)
+            l_url = list(url)
 
-            if len(url) == 0:
+            if len(l_url) == 0:
                 raise EventDatasetURLException("EventDataset initialized with an empty URL")
 
             # Make sure we can parse this URL. We don't, at some level, care about the actual contents.
-            r_list = [parse.urlparse(u) for u in url]
+            r_list = [parse.urlparse(u) for u in l_url]
             for r in r_list:
                 if r.scheme is None or len(r.scheme) == 0:
-                    raise EventDatasetURLException(f'EventDataSet({url}) has no scheme (file://, localds://, etc.)')
-                if r.netloc is None or len(r.netloc) == 0:
-                    raise EventDatasetURLException(f'EventDataSet({url}) has no dataset or filename')
+                    raise EventDatasetURLException(f'EventDataSet({l_url}) has no scheme (file://, localds://, etc.)')
+                if (r.netloc is None or len(r.netloc) == 0) and len(r.path) == 0:
+                    raise EventDatasetURLException(f'EventDataSet({l_url}) has no dataset or filename')
+            self.url = [fixup_url(u, r) for u in l_url]
+        else:
+            self.url = url
 
-        self.url = url
         self._ast = self
         self._fields = ('url',)

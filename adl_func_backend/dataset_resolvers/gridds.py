@@ -12,7 +12,9 @@ from adl_func_backend.xAODlib.exe_atlas_xaod_docker import use_executor_xaod_doc
 
 # Resolvers:
 def resolve_file(parsed_url, url:str):
-    l = f'{parsed_url.netloc}{parsed_url.path}'
+    if len(parsed_url.netloc) != 0:
+        raise FileNotFoundError(errno.ENOENT, f'Unable to find files that are remote: {parsed_url.netloc} and path {parsed_url.path}.')
+    l = parsed_url.path[1:]
     if not os.path.exists(l):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), l)
     return [url]

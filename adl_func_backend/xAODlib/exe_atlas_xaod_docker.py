@@ -12,13 +12,16 @@ import os
 dump_running_log = True
 dump_cpp = False
 
+class AtlasXAODDockerException(BaseException):
+    def __init__ (self, message):
+        BaseException.__init__(self, message)
+
 # Result handlers - for each return type representation, add a handler that can process it
 result_handlers = {
         rh.cpp_ttree_rep: rh.extract_result_TTree,
         rh.cpp_awkward_rep: rh.extract_awkward_result,
         rh.cpp_pandas_rep: rh.extract_pandas_result,
 }
-
 
 def use_executor_xaod_docker(a: ast.AST):
     '''
@@ -37,14 +40,20 @@ def use_executor_xaod_docker(a: ast.AST):
         datafile_dir = None
         with open(f'{local_run_dir}/filelist.txt', 'w') as flist_out:
             for u in f_spec.input_urls:
-                (_, netloc, path, _, _, _) = urlparse(u)
-                datafile = os.path.basename(netloc + path)
+                (scheme, netloc, path, _, _, _) = urlparse(u)
+                # Do a sanity check.
+                if scheme != 'file':
+                    raise AtlasXAODDockerException(f'Only URLs with scheme `file` can be used: {u}')
+                if len(netloc) != 0:
+                    raise AtlasXAODDockerException(f'Only file URLs that have no node specification can be used (e.g. file:///path) : {u}')
+                ds_path = path[1:]
+                datafile = os.path.basename(ds_path)
                 flist_out.write(f'/data/{datafile}\n')
 
                 if datafile_dir is None:
-                    datafile_dir = os.path.dirname(netloc+path)
+                    datafile_dir = os.path.dirname(ds_path)
                 else:
-                    t = os.path.dirname(netloc+path)
+                    t = os.path.dirname(ds_path)
                     if t != datafile_dir:
                         raise BaseException(f'Data files must be from the same directory. Have seen {t} and {datafile_dir} so far.')
 

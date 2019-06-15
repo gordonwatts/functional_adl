@@ -12,15 +12,16 @@ def ast_jet_pt():
         .AsPandasDF('JetPt') \
         .value(executor=lambda a: a)
 
+def generate_ast(ast_number:int):
+    'Return an ast'
+    if ast_number == 0:
+        return ast_jet_pt()
+    else:
+        raise BaseException(f'Internal error - unknown ast request number {ast_number}')
+
 def write_ast (ast_number:int, output_filename: str):
     'Write an ast'
-    a = None
-    if ast_number is 0:
-        a = ast_jet_pt()
-    
-    if a is None:
-        raise BaseException(f'Internal error - unknown ast {ast_number} requested.')
-
+    a = generate_ast(ast_number)
     with open(output_filename, 'wb') as f:
         pickle.dump(a, f)
 

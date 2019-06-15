@@ -19,7 +19,7 @@ def test_no_cache_ever():
         r = use_executor_xaod_hash_cache(build_ast(), local_run_dir)
         assert r is not None
         assert len(r.filelist) == 1
-        assert r.filelist[0] == 'file://root.root'
+        assert r.filelist[0] == 'file:///root.root'
         assert os.path.exists(f'{local_run_dir}/{r.hash}/{r.main_script}')
 
 def test_twice():
@@ -29,5 +29,5 @@ def test_twice():
         r2 = use_executor_xaod_hash_cache(build_ast(), local_run_dir)
         assert r2 is not None
         assert len(r2.filelist) == 1
-        assert r2.filelist[0] == 'file://root.root'
+        assert r2.filelist[0] == 'file:///root.root'
         assert os.path.exists(f'{local_run_dir}/{r2.hash}/{r2.main_script}')
