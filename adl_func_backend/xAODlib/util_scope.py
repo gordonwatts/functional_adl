@@ -1,7 +1,6 @@
 # Scope related utilities
 # see https://stackoverflow.com/questions/33533148/how-do-i-specify-that-the-return-type-of-a-method-is-the-same-as-the-class-itsel
 # for info on this next line. Already looking forward to python 4...
-from __future__ import annotations
 import copy
 from typing import Union
 
@@ -16,7 +15,7 @@ class gc_scope:
     def __init__(self, scope_stack):
         self._scope_stack = copy.copy(scope_stack)
 
-    def __getitem__(self, key: int) -> gc_scope:
+    def __getitem__(self, key: int):
         '''
         Return a new scope, some number "up" from where we are now. This uses standard
         array slicing in python. If you do 0 you'll get back the top level. If you do -1
@@ -38,7 +37,7 @@ class gc_scope:
         'Declare a class at the scope level'
         self._scope_stack[-1].declare_variable(var)
 
-    def starts_with(self, c: Union[gc_scope, gc_scope_top_level]):
+    def starts_with(self, c):
         '''
         Return true if the scope c matches the first part of our scope. False otherwise.
         '''
@@ -63,7 +62,7 @@ class gc_scope_top_level:
     def __getitem__(self, key: int) -> gc_scope:
         raise BaseException("This should never be called. Internal error")
     
-    def starts_with(self, c: Union[gc_scope, gc_scope_top_level]):
+    def starts_with(self, c):
         'Starts with can only be true for top level if the other guy is top level'
         return type(c) is gc_scope_top_level
 

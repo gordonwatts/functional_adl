@@ -1,5 +1,4 @@
 # Statements
-from __future__ import annotations
 import adl_func_backend.cpplib.cpp_representation as crep
 from typing import Any, Optional
 

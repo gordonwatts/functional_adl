@@ -49,7 +49,6 @@
 #
 # TODO: Rename the classes in here to be proper Python names
 #
-from __future__ import annotations
 from adl_func_backend.cpplib.cpp_vars import unique_name
 from adl_func_backend.xAODlib.util_scope import gc_scope, gc_scope_top_level
 import ast
@@ -205,7 +204,7 @@ class cpp_sequence(cpp_rep_base):
     A sequence is a stream of values of a particular type. You can think of it like a generator expression,
     or like a vector of some type.
     '''
-    def __init__ (self, sequence_value: Union[cpp_value, cpp_sequence], iterator_value: cpp_value):
+    def __init__ (self, sequence_value, iterator_value: cpp_value):
         '''
         Create a sequence
 
