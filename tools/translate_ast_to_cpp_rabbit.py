@@ -23,7 +23,7 @@ def process_message(ch, method, properties, body):
     msg = {
         'hash': r.hash,
         'main_script': r.main_script,
-        'files:': r.filelist
+        'files': r.filelist
     }
     ch.basic_publish(exchange='', routing_key='run_cpp', body=json.dumps(msg))
 
