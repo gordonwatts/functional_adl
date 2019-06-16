@@ -36,5 +36,6 @@
         "ulist",
         "xaod"
     ],
+    "docker.imageBuildContextPath": ".",
     "python.autoComplete.addBrackets": true
 }
