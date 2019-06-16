@@ -4,6 +4,7 @@ from collections import namedtuple
 import os
 import pickle
 from typing import Iterable
+from adl_func_backend.ast import ast_hash
 
 from adl_func_backend.xAODlib.atlas_xaod_executor import atlas_xaod_executor
 from adl_func_backend.util_LINQ import find_dataset
@@ -27,10 +28,7 @@ def use_executor_xaod_hash_cache(a: ast.AST, cache_path: str) -> HashXAODExecuto
         HashXAODExecutorInfo    Named tuple with the hash and the list of files in it.
     '''
     # Calculate the AST hash. If this is already around then we don't need to do very much!
-    import hashlib
-    b = bytearray()
-    b.extend(map(ord, ast.dump(a)))
-    hash = hashlib.md5(b).hexdigest()
+    hash = ast_hash.calc_ast_hash(a)
 
     # Next, see if the hash file is there.
     query_file_path = os.path.join(cache_path, hash)
