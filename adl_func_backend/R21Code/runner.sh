@@ -132,4 +132,14 @@ fi
 python ../source/analysis/share/ATestRun_eljob.py --submission-dir=bogus
 
 # Place the output file where it belongs
-cp ./bogus/data-ANALYSIS/ANALYSIS.root /results
+if [ -z "$1" ]; then
+  cmd="cp"
+  destination="/results"
+else
+  destination=$1
+  cmd="cp"
+  if [[ $destination == "root:"* ]]; then
+    cmd="xrdcp"
+  fi
+fi
+$cmd ./bogus/data-ANALYSIS/ANALYSIS.root $destination

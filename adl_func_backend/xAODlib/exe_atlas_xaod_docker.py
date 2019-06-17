@@ -58,7 +58,7 @@ def use_executor_xaod_docker(a: ast.AST):
                         raise BaseException(f'Data files must be from the same directory. Have seen {t} and {datafile_dir} so far.')
 
         # Build a docker command to run this.
-        docker_cmd = f'docker run --rm -v {f_spec.output_path}:/scripts -v {f_spec.output_path}:/results -v {datafile_dir}:/data  atlas/analysisbase:21.2.62 /scripts/{f_spec.main_script}'
+        docker_cmd = f'docker run --rm -v {f_spec.output_path}:/scripts -v {f_spec.output_path}:/results -v {datafile_dir}:/data  atlas/analysisbase:21.2.62 /scripts/{f_spec.main_script} /results'
         if dump_running_log:
             r = subprocess.call(docker_cmd, stderr=subprocess.STDOUT, shell=False)
             print ("Result of run: {0}".format(r))
