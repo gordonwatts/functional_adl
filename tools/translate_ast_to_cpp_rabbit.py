@@ -3,6 +3,7 @@ import pika
 import sys
 import pickle
 import ast
+import base64
 import json
 from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod_hash_cache
 
@@ -12,24 +13,35 @@ from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod
 
 def process_message(ch, method, properties, body):
     'Message comes in off the queue. We deal with it.'
-    a = pickle.loads(body)
+    info = json.loads(body)
+    hash = info['hash']
+    a = pickle.loads(base64.b64decode(info['ast']))
     if a is None or not isinstance(a, ast.AST):
         print (f"Body of message wasn't an ast: {a}")
 
     # Now do the translation.
+    ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': 'generating_cpp'}))
     r = use_executor_xaod_hash_cache (a, '/cache')
+    ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': 'finished_cpp'}))
+
+    # Decide how many jobs we will split things into.
+    # For now, we do one job only.
+    ch.basic_publish(exchange='', routing_key='status_number_jobs', body=json.dumps({'hash': hash, 'njobs': 1}))
 
     # Create the JSON message that can be sent on to the next stage.
+    # Are now carrying along two hashes - one that identifies this query and everything associated with it.
+    # And a second that is for the source code for this query (which is independent of the files we are going to process).
     msg = {
-        'hash': r.hash,
+        'hash': hash,
+        'hash_source': r.hash,
         'main_script': r.main_script,
-        'files': r.filelist
+        'files': r.filelist,
+        'output_file': f'{hash}/file_001.root'
     }
     ch.basic_publish(exchange='', routing_key='run_cpp', body=json.dumps(msg))
 
     # Done! Take this off the queue now.
     ch.basic_ack(delivery_tag=method.delivery_tag)
-
 
 def listen_to_queue(rabbit_server):
     'Look for jobs to come off a queue and send them on'
@@ -39,6 +51,8 @@ def listen_to_queue(rabbit_server):
     channel = connection.channel()
     channel.queue_declare(queue='parse_cpp')
     channel.queue_declare(queue='run_cpp')
+    channel.queue_declare(queue='status_change_state')
+    channel.queue_declare(queue='status_number_jobs')
 
     channel.basic_consume(queue='parse_cpp', on_message_callback=process_message, auto_ack=False)
 
