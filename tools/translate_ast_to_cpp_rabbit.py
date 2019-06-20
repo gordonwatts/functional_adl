@@ -5,6 +5,7 @@ import pickle
 import ast
 import base64
 import json
+import os
 from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod_hash_cache
 
 # WARNING:
@@ -43,11 +44,14 @@ def process_message(ch, method, properties, body):
     # Done! Take this off the queue now.
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-def listen_to_queue(rabbit_server):
+def listen_to_queue(rabbit_server:str, rabbit_user:str, rabbit_pass:str):
     'Look for jobs to come off a queue and send them on'
 
     # Connect and setup the queues we will listen to and push once we've done.
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbit_server))
+    if rabbit_pass in os.environ:
+        rabbit_pass = os.environ[rabbit_pass]
+    credentials = pika.PlainCredentials(rabbit_user, rabbit_pass)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbit_server, credentials=credentials))
     channel = connection.channel()
     channel.queue_declare(queue='parse_cpp')
     channel.queue_declare(queue='run_cpp')
@@ -61,8 +65,8 @@ def listen_to_queue(rabbit_server):
 
 
 if __name__ == '__main__':
-    bad_args = len(sys.argv) != 2
+    bad_args = len(sys.argv) != 4
     if bad_args:
-        print ("Usage: python translate_ast_to_cpp_rabbit.py <rabbit-mq-node-address>")
+        print ("Usage: python translate_ast_to_cpp_rabbit.py <rabbit-mq-node-address> <rabbit-username> <rabbit-password>")
     else:
-        listen_to_queue(sys.argv[1])
+        listen_to_queue(sys.argv[1], sys.argv[2], sys.argv[3])
