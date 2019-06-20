@@ -22,11 +22,10 @@ def send_ast_msg (ast_number:int, base_url:str):
 
         r = requests.post(f'{base_url}/query', headers={"content-type": "application/octet-stream"},  data=d)
 
-        if r.content.decode("utf-8")[0:2] != '"{':
+        if r.content.decode("utf-8")[0:1] != '{':
             print (f'Error: {r.content}')
         else:
-            fixed = r.content.decode("utf-8")[1:-1].replace('\\"', '"')
-            dr = json.loads(fixed)
+            dr = json.loads(r.content)
             print (dr)
             done = dr['done']
     print (dr['files'])
