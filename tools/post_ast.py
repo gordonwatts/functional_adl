@@ -27,6 +27,7 @@ def send_ast_msg (ast_number:int, base_url:str):
         else:
             fixed = r.content.decode("utf-8")[1:-1].replace('\\"', '"')
             dr = json.loads(fixed)
+            print (dr)
             done = dr['done']
     print (dr['files'])
 
