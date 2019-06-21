@@ -6,7 +6,7 @@ import ast
 import base64
 import json
 import os
-from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod_hash_cache
+from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod_hash_cache, CacheExeException
 
 # WARNING:
 # Meant to be run from within a container. Some things are assumed:
@@ -22,24 +22,31 @@ def process_message(ch, method, properties, body):
 
     # Now do the translation.
     ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': 'generating_cpp'}))
-    r = use_executor_xaod_hash_cache (a, '/cache')
-    ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': 'finished_cpp'}))
+    try:
+        r = use_executor_xaod_hash_cache (a, '/cache')
+        ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': 'finished_cpp'}))
 
-    # Decide how many jobs we will split things into.
-    # For now, we do one job only.
-    ch.basic_publish(exchange='', routing_key='status_number_jobs', body=json.dumps({'hash': hash, 'njobs': 1}))
+        # Decide how many jobs we will split things into.
+        # For now, we do one job only.
+        ch.basic_publish(exchange='', routing_key='status_number_jobs', body=json.dumps({'hash': hash, 'njobs': 1}))
 
-    # Create the JSON message that can be sent on to the next stage.
-    # Are now carrying along two hashes - one that identifies this query and everything associated with it.
-    # And a second that is for the source code for this query (which is independent of the files we are going to process).
-    msg = {
-        'hash': hash,
-        'hash_source': r.hash,
-        'main_script': r.main_script,
-        'files': r.filelist,
-        'output_file': f'{hash}/file_001.root'
-    }
-    ch.basic_publish(exchange='', routing_key='run_cpp', body=json.dumps(msg))
+        # Create the JSON message that can be sent on to the next stage.
+        # Are now carrying along two hashes - one that identifies this query and everything associated with it.
+        # And a second that is for the source code for this query (which is independent of the files we are going to process).
+        filebase, extension = os.path.splitext(os.path.basename(r.output_filename))
+        msg = {
+            'hash': hash,
+            'hash_source': r.hash,
+            'main_script': r.main_script,
+            'files': r.filelist,
+            'output_file': f'{hash}/{filebase}_001{extension}',
+            'treename': r.treename,
+        }
+        ch.basic_publish(exchange='', routing_key='run_cpp', body=json.dumps(msg))
+
+    except CacheExeException as e:
+        # We crashed. No idea why, but lets log it.
+        ch.basic_publish(exchange='', routing_key='status_change_state', body=json.dumps({'hash': hash, 'phase': f'crashed_cpp - {e.message}'}))
 
     # Done! Take this off the queue now.
     ch.basic_ack(delivery_tag=method.delivery_tag)

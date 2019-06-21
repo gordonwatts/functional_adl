@@ -9,7 +9,7 @@ def ast_jet_pt():
     return f_ds \
         .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
         .Select('lambda j: j.pt()/1000.0') \
-        .AsPandasDF('JetPt') \
+        .AsROOTTTree('output.root', 'dudetree', 'JetPt') \
         .value(executor=lambda a: a)
 
 def generate_ast(ast_number:int):

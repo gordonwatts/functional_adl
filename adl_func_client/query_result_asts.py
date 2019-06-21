@@ -1,13 +1,13 @@
 # AST and friends that denote a note that will emit a TTree.
 import ast
-
+from collections import namedtuple
 
 class ResultTTree(ast.AST):
     r'''
     An AST node that transforms a iterator into a TTree file.
     '''
 
-    def __init__(self, source=None, column_names=None):
+    def __init__(self, source=None, column_names=None, tree_name=None, filename = None):
         r'''
         Initialize the resultTTree AST node.
 
@@ -16,7 +16,15 @@ class ResultTTree(ast.AST):
         '''
         self.source = source
         self.column_names = (column_names,) if type(column_names) == str else column_names
+        self.tree_name = tree_name
+        self.filename = filename
         self._fields = ('source',)
+
+# Tree result for an individual file. Contains the tree name and the filename url.
+ROOTTreeFileInfo = namedtuple('ROOTTreeFileInfo', 'filename treename')
+# The complete result, contains a list of files and something that indicates all possbile data
+# is present.
+ROOTTreeResult = namedtuple('ROOTTreeResult', 'is_complete fileinfo_list')
 
 class ResultPandasDF(ast.AST):
     r'''

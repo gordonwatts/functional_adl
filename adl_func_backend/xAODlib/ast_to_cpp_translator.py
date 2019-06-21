@@ -674,7 +674,7 @@ class query_ast_visitor(ast.NodeVisitor):
             self._gc.declare_class_variable(cv[1])
 
         # Next, emit the booking code
-        tree_name = unique_name("analysis_tree")
+        tree_name = unique_name(node.tree_name)
         self._gc.add_book_statement(statement.book_ttree(tree_name, var_names))
 
         # Note that the output file and tree are what we are going to return.
@@ -723,7 +723,7 @@ class query_ast_visitor(ast.NodeVisitor):
         The result of this guy is an awkward array. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.
         '''
-        ttree = query_result_asts.ResultTTree(node.source, node.column_names)
+        ttree = query_result_asts.ResultTTree(node.source, node.column_names, 'pandatree', 'output.root')
         r = self.get_rep(ttree)
         if not isinstance(r, rh.cpp_ttree_rep):
             raise BaseException("Can't deal with different return type from tree!")
@@ -735,7 +735,7 @@ class query_ast_visitor(ast.NodeVisitor):
         The result of this guy is an pandas dataframe. We generate a token here, and invoke the resultTTree in order to get the
         actual ROOT file written. Later on, when dealing with the result stuff, we extract it into an awkward array.
         '''
-        ttree = query_result_asts.ResultTTree(node.source, node.column_names)
+        ttree = query_result_asts.ResultTTree(node.source, node.column_names, 'pandatree', 'output.root')
         r = self.get_rep(ttree)
         if not isinstance(r, rh.cpp_ttree_rep):
             raise BaseException("Can't deal with different return type from tree!")

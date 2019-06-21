@@ -13,6 +13,7 @@
         "Topo",
         "URL's",
         "asts",
+        "availible",
         "chmod",
         "cpplib",
         "crep",
@@ -31,10 +32,12 @@
         "nfiles",
         "pytest",
         "pytestmark",
+        "r'localds",
         "rucio",
         "skipif",
         "ulist",
-        "xaod"
+        "xaod",
+        "xrootd"
     ],
     "docker.imageBuildContextPath": ".",
     "python.autoComplete.addBrackets": true

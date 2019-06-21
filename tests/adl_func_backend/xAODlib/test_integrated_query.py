@@ -27,14 +27,14 @@ def test_select_first_of_array():
     assert training_df.iloc[1]['dude'] == 605
     assert training_df.iloc[1999]['dude'] == 231
 
-def test_select_first_of_array_ds():
-    # The hard part is that First() here does not return a single item, but, rather, an array that
-    # has to be aggregated over.
-    training_df = f_ds \
-            .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: e.Tracks("InDetTrackParticles")).First().Count()') \
-            .AsPandasDF('dude') \
-            .value(executor=use_executor_dataset_resolver)
-    assert training_df.iloc[0]['dude'] == 190
+# def test_select_first_of_array_ds():
+#     # The hard part is that First() here does not return a single item, but, rather, an array that
+#     # has to be aggregated over.
+#     training_df = f_ds \
+#             .Select('lambda e: e.Jets("AntiKt4EMTopoJets").Select(lambda j: e.Tracks("InDetTrackParticles")).First().Count()') \
+#             .AsPandasDF('dude') \
+#             .value(executor=use_executor_dataset_resolver)
+#     assert training_df.iloc[0]['dude'] == 190
 
 def test_flatten_array():
     # A very simple flattening of arrays
@@ -79,3 +79,11 @@ def test_truth_particles():
         .AsPandasDF('NTruthParticles') \
         .value(executor=use_executor_dataset_resolver)
     assert training_df.iloc[0]['NTruthParticles'] == 1557
+
+def test_truth_particles_awk():
+    training_df = f \
+        .Select("lambda e: e.TruthParticles('TruthParticles').Count()") \
+        .AsAwkwardArray('NTruthParticles') \
+        .value(executor=use_executor_dataset_resolver)
+    print (training_df)
+    assert len(training_df[b'NTruthParticles']) == 2000

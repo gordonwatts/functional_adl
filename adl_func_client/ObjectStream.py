@@ -92,7 +92,7 @@ class ObjectStream:
             may be written by the back end, and need to be concatenated together to get the full
             dataset.
         """
-        return ObjectStream(ResultTTree(self._ast, columns))
+        return ObjectStream(ResultTTree(self._ast, columns, treename, filename))
 
     def AsAwkwardArray(self, columns=[]):
         r'''

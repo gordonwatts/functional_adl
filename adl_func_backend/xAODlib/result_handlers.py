@@ -4,6 +4,7 @@
 from adl_func_backend.cpplib.cpp_representation import cpp_value
 import adl_func_backend.cpplib.cpp_types as ctyp
 from adl_func_backend.cpplib.cpp_vars import unique_name
+from adl_func_client.query_result_asts import ROOTTreeFileInfo, ROOTTreeResult
 from collections import namedtuple
 import pandas as pd
 import uproot
@@ -42,7 +43,7 @@ def extract_result_TTree(rep, run_dir):
 
     shutil.copyfile(df_current, df_name)
 
-    return namedtuple('TTreeFile', 'file tree_name')(df_name, rep.treename)
+    return ROOTTreeResult(True, [ROOTTreeFileInfo(df_name, rep.treename)])
 
 #############
 # Awkward Array Return
