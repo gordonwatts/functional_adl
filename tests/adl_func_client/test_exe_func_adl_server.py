@@ -23,7 +23,17 @@ def one_actual_file(monkeypatch):
     status_mock = Mock()
     push_mock.return_value = status_mock
     monkeypatch.setattr('requests.post', push_mock)
-    status_mock.json.return_value={'files': [['sample_root_result.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
+    status_mock.json.return_value={'files': [['tests/adl_func_client/sample_root_result.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
+    return None
+
+@pytest.fixture()
+def two_actual_files(monkeypatch):
+    'Setup mocks for a remote call that returns local file that points to a real file'
+    push_mock = Mock()
+    status_mock = Mock()
+    push_mock.return_value = status_mock
+    monkeypatch.setattr('requests.post', push_mock)
+    status_mock.json.return_value={'files': [['tests/adl_func_client/sample_root_result.root', 'dudetree3'], ['tests/adl_func_client/sample_root_result.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
     return None
 
 @pytest.fixture()
@@ -70,6 +80,16 @@ def simple_query_ast_Pandas():
         .AsPandasDF('JetPt') \
         .value(executor=lambda a: a)
 
+@pytest.fixture()
+def simple_query_ast_awkward():
+    'Return a simple ast for a query'
+    f_ds = EventDataset(r'localds://bogus_ds')
+    return f_ds \
+        .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
+        .Select('lambda j: j.pt()/1000.0') \
+        .AsAwkwardArray('JetPt') \
+        .value(executor=lambda a: a)
+
 def test_simple_root_query(one_file_remote_query_return, simple_query_ast_ROOT):
     'Most simple implementation'
     r = use_exe_func_adl_server(simple_query_ast_ROOT)
@@ -101,4 +121,23 @@ def test_wait_for_all_files(ds_returns_bit_by_bit, simple_query_ast_ROOT):
 def test_get_pandas(one_actual_file, simple_query_ast_Pandas):
     r = use_exe_func_adl_server(simple_query_ast_Pandas)
     assert type(r) is pd.DataFrame
-    assert len(r) == 3000
+    assert len(r) == 356159
+
+def test_get_pandas_from_two_files(two_actual_files, simple_query_ast_Pandas):
+    r = use_exe_func_adl_server(simple_query_ast_Pandas)
+    assert type(r) is pd.DataFrame
+    assert len(r) == 356159*2
+
+def test_get_awkward(one_actual_file, simple_query_ast_awkward):
+    r = use_exe_func_adl_server(simple_query_ast_awkward)
+    assert type(r) is dict
+    assert len(r.keys()) == 1
+    assert list(r.keys())[0] == b'JetPt'
+    assert len(r[b'JetPt']) == 356159
+
+def test_get_awkward_from_two_files(two_actual_files, simple_query_ast_awkward):
+    r = use_exe_func_adl_server(simple_query_ast_awkward)
+    assert type(r) is dict
+    assert len(r.keys()) == 1
+    assert list(r.keys())[0] == b'JetPt'
+    assert len(r[b'JetPt']) == 356159*2
