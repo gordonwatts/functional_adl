@@ -9,7 +9,7 @@ from os import listdir
 print (find_packages())
 xaod_template_files = listdir('adl_func_backend/R21Code')
 setup(name="functional_adl",
-    version='0.1.0-alpha.1',
+    version='0.1.0',
     packages=find_packages(exclude=['tests']),
     scripts=[],
     description="Functional Analysis Description Language",
@@ -37,6 +37,7 @@ setup(name="functional_adl",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
         "Topic :: Software Development",
+        "Topic :: Data Analysis",
         "Topic :: Utilities",
     ],
     data_files=[('adl_func_backend/R21Code', [f'adl_func_backend/R21Code/{f}' for f in xaod_template_files])],
