@@ -2,11 +2,24 @@
 import ast
 import requests
 import pickle
+import os
 import time
 import uproot
 import pandas as pd
 import numpy as np
 from adl_func_client.query_result_asts import ResultPandasDF, ResultTTree, ResultAwkwardArray
+import urllib
+
+def _uri_exists(uri):
+    'Look to see if a file:// uri exists'
+    r = urllib.parse.urlparse(uri)
+    if r.scheme != 'file':
+        return False
+    if os.path.exists(r.path):
+        return True
+    # Give a chance for a relative path.
+    return os.path.exists(r.path[1:])
+
 
 class walk_ast(ast.NodeTransformer):
     'Walk the AST, replace the ROOT lookup node by something we know how to deal with.'
@@ -15,6 +28,18 @@ class walk_ast(ast.NodeTransformer):
         self._node = node
         self._sleep_time = sleep_interval_seconds
         self._partial_ds_ok = partial_ds_ok
+
+    def extract_filespec(self, response: dict):
+        'Given the dictionary of info that came back from the webservice, extract the proper set of files'
+
+        # If there is nothing to use to determine how to get at the files...
+        if 'localfiles' not in response:
+            return response['files']
+
+        # Prefer local files - but only if they are locally visible.
+        pairs = zip(response['files'], response['localfiles'])
+        r = [lfl if _uri_exists(lfl[0]) else fl for fl, lfl in pairs]
+        return r
 
     def visit_ResultTTree(self, node: ResultTTree):
         'Send a query to the remote node. Then hang out until something we can work with shows up.'
@@ -32,18 +57,25 @@ class walk_ast(ast.NodeTransformer):
             dr = r.json()
 
             if dr['done'] or (self._partial_ds_ok and len(dr['files']) > 0):
-                return {'files': dr['files']}
+                return {'files': self.extract_filespec(dr)}
             if self._sleep_time > 0:
                 time.sleep(self._sleep_time)
 
+    def _clean_name(self, fname):
+        'Clean up a name. Mostly dealing with URIs, uproot, and windows.'
+        p = urllib.parse.urlparse(fname)
+        if os.path.exists(p.path):
+            return fname
+        return f'file://{p.path[1:]}'
+
     def _load_df (self, f_name, t_name):
-        data_file = uproot.open(f_name)
+        data_file = uproot.open(self._clean_name(f_name))
         df_new = data_file[t_name].pandas.df()
         data_file._context.source.close()
         return df_new
 
     def _load_awkward (self, f_name, t_name):
-        data_file = uproot.open(f_name)
+        data_file = uproot.open(self._clean_name(f_name))
         df_new = data_file[t_name].arrays()
         data_file._context.source.close()
         return df_new

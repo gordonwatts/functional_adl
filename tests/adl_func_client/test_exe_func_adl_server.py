@@ -17,6 +17,28 @@ def one_file_remote_query_return(monkeypatch):
     return None
 
 @pytest.fixture()
+def one_file_with_local_access_nonlocal(monkeypatch):
+    'Setup mocks for a remote call that returns a single file with a local access list'
+    push_mock = Mock()
+    status_mock = Mock()
+    push_mock.return_value = status_mock
+    monkeypatch.setattr('requests.post', push_mock)
+    status_mock.json.return_value={'files': [['file.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1, 'localfiles': [['file:///data/file.root', 'dudetree3']]}
+    return None
+
+@pytest.fixture()
+def one_file_with_local_access(monkeypatch):
+    'Setup mocks for a remote call that returns a single file with a local access list'
+    push_mock = Mock()
+    status_mock = Mock()
+    push_mock.return_value = status_mock
+    monkeypatch.setattr('requests.post', push_mock)
+    status_mock.json.return_value={'files': [['file.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1, 'localfiles': [['file:///tests/adl_func_client/sample_root_result.root', 'dudetree3']]}
+    return None
+
+
+
+@pytest.fixture()
 def one_actual_file(monkeypatch):
     'Setup mocks for a remote call that returns local file that points to a real file'
     push_mock = Mock()
@@ -141,3 +163,26 @@ def test_get_awkward_from_two_files(two_actual_files, simple_query_ast_awkward):
     assert len(r.keys()) == 1
     assert list(r.keys())[0] == b'JetPt'
     assert len(r[b'JetPt']) == 356159*2
+
+def test_prefer_local_access_not_on_this_system(one_file_with_local_access_nonlocal, simple_query_ast_ROOT):
+    'Check to make sure we do not choose the local access guy since we cannot see it'
+    r = use_exe_func_adl_server(simple_query_ast_ROOT)
+    assert r['files'][0][0] == 'file.root'
+    assert r['files'][0][1] == 'dudetree3'
+
+def test_prefer_local_access(one_file_with_local_access, simple_query_ast_ROOT):
+    'Check to make sure we do not choose the local access guy since we cannot see it'
+    r = use_exe_func_adl_server(simple_query_ast_ROOT)
+    assert r['files'][0][0] == 'file:///tests/adl_func_client/sample_root_result.root'
+    assert r['files'][0][1] == 'dudetree3'
+
+def test_prefer_local_access_pandas(one_file_with_local_access, simple_query_ast_Pandas):
+    'Check to make sure we do not choose the local access guy since we cannot see it'
+    r = use_exe_func_adl_server(simple_query_ast_Pandas)
+    assert len(r) == 356159
+ 
+def test_prefer_local_access_awkward(one_file_with_local_access, simple_query_ast_awkward):
+    'Check to make sure we do not choose the local access guy since we cannot see it'
+    r = use_exe_func_adl_server(simple_query_ast_awkward)
+    assert len(r[b'JetPt']) == 356159
+ 
