@@ -23,11 +23,12 @@ def _uri_exists(uri):
 
 class walk_ast(ast.NodeTransformer):
     'Walk the AST, replace the ROOT lookup node by something we know how to deal with.'
-    def __init__(self, node:ast.AST, sleep_interval_seconds:int, partial_ds_ok:bool):
+    def __init__(self, node:ast.AST, sleep_interval_seconds:int, partial_ds_ok:bool, quiet:bool):
         'Set the node were we can go pick up the data'
         self._node = node
         self._sleep_time = sleep_interval_seconds
         self._partial_ds_ok = partial_ds_ok
+        self._quiet = quiet
 
     def extract_filespec(self, response: dict):
         'Given the dictionary of info that came back from the webservice, extract the proper set of files'
@@ -48,16 +49,40 @@ class walk_ast(ast.NodeTransformer):
         ast_data = pickle.dumps(node)
 
         # Repeat until we get a good-enough answer.
+        phases = {}
         while True:
             r = requests.post(f'{self._node}/query',
                 headers={"content-type": "application/octet-stream"},
                 data=ast_data)
 
-            # TODO: properly handle errors
+            # Need to handle errors (see https://github.com/gordonwatts/functional_adl/issues/22).
             dr = r.json()
 
+            # Accumulate statistics
+            p = dr['phase']
+            if p in phases:
+                phases[p] += 1
+            else:
+                phases[p] = 1
+
+            # If we are done, return the information.
             if dr['done'] or (self._partial_ds_ok and len(dr['files']) > 0):
-                return {'files': self.extract_filespec(dr)}
+                if not self._quiet and len(phases) > 1:
+                    # Report on how much time we spent waiting.
+                    total = sum([phases[k] for k in phases.keys()])
+                    print ('Where we spent time waiting for column data:')
+                    for k in phases.keys():
+                        print (f'  {k}: {phases[k]*100/total}%')
+
+                r = {'files': self.extract_filespec(dr)}
+                if not self._quiet:
+                    print ('Files that were returned:')
+                    for f in r['files']:
+                        print (f'  {f}')
+                
+                return r
+
+            # Wait a short amount of time before pinging again.
             if self._sleep_time > 0:
                 time.sleep(self._sleep_time)
 
@@ -139,7 +164,12 @@ class walk_ast(ast.NodeTransformer):
             col_names = frames[0].keys()
             return {c: np.concatenate([ar[c] for ar in frames]) for c in col_names}
 
-def use_exe_func_adl_server(a: ast.AST, node='http://localhost:30000', sleep_interval = 5, wait_for_finished=True):
+def use_exe_func_adl_server(a: ast.AST,
+        node='http://localhost:30000',
+        sleep_interval = 5,
+        wait_for_finished=True,
+        dump_files=False,
+        quiet=False):
     r'''
     Run a query against a func-adl server backend. The appropriate part of the AST is shipped there, and it is interpreted.
 
@@ -150,6 +180,8 @@ def use_exe_func_adl_server(a: ast.AST, node='http://localhost:30000', sleep_int
         sleep_interval:     How many seconds to wait between queries to the server when the data isn't yet ready
         wait_for_finished:  If true will wait until the dataset has been fully processed. Otherwise will
                             come back without a complete dataset just fine, as long as a least one file is done.
+        dump_files          If true, will print out the files that we are returning
+        quiet               If true, run with as little output as possible.
 
     Returns:
         A dictionary with the following keys:
@@ -159,5 +191,5 @@ def use_exe_func_adl_server(a: ast.AST, node='http://localhost:30000', sleep_int
 
     # The func-adl server can only deal with certian types of queries. So we need to
     # make sure we only send those. Do that by walking the nodes.
-    r = walk_ast(node, sleep_interval, partial_ds_ok=not wait_for_finished).visit(a)
+    r = walk_ast(node, sleep_interval, partial_ds_ok=not wait_for_finished, quiet=quiet).visit(a)
     return r

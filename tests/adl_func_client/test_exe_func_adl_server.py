@@ -66,7 +66,7 @@ def one_file_remote_query_return_two(monkeypatch):
     status_mock2 = Mock()
     push_mock.side_effect = [status_mock1, status_mock2]
     monkeypatch.setattr('requests.post', push_mock)
-    status_mock1.json.return_value={'files': [], 'phase': 'done', 'done': False, 'jobs': 1}
+    status_mock1.json.return_value={'files': [], 'phase': 'running', 'done': False, 'jobs': 1}
     status_mock2.json.return_value={'files': [['file.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
     return None
 
@@ -121,6 +121,10 @@ def test_simple_root_query(one_file_remote_query_return, simple_query_ast_ROOT):
     assert r['files'][0][0] == 'file.root'
     assert r['files'][0][1] == 'dudetree3'
 
+def test_print_files(one_file_remote_query_return, simple_query_ast_ROOT):
+    'Simple query, print out things'
+    _ = use_exe_func_adl_server(simple_query_ast_ROOT, dump_files=True)
+
 def test_simple_root_query_not_read_at_first(one_file_remote_query_return_two, simple_query_ast_ROOT):
     'Most simple implementation'
     r = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0)
@@ -128,6 +132,10 @@ def test_simple_root_query_not_read_at_first(one_file_remote_query_return_two, s
     assert 'files' in r
     assert len(r['files']) == 1
     assert r['files'][0][0] == 'file.root'
+
+def test_dump_phases(one_file_remote_query_return_two, simple_query_ast_ROOT):
+    'Most simple implementation'
+    _ = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, quiet=False)
 
 def test_first_file_good_enough(ds_returns_bit_by_bit, simple_query_ast_ROOT):
     r = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, wait_for_finished=False)
