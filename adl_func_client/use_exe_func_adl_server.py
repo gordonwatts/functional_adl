@@ -169,7 +169,7 @@ def use_exe_func_adl_server(a: ast.AST,
         sleep_interval = 5,
         wait_for_finished=True,
         dump_files=False,
-        quiet=False):
+        quiet=True):
     r'''
     Run a query against a func-adl server backend. The appropriate part of the AST is shipped there, and it is interpreted.
 

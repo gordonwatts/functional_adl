@@ -193,4 +193,3 @@ def test_prefer_local_access_awkward(one_file_with_local_access, simple_query_as
     'Check to make sure we do not choose the local access guy since we cannot see it'
     r = use_exe_func_adl_server(simple_query_ast_awkward)
     assert len(r[b'JetPt']) == 356159
- 
