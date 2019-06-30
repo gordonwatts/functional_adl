@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from adl_func_client.query_result_asts import ResultPandasDF, ResultTTree, ResultAwkwardArray
 import urllib
+import time
 
 def _uri_exists(uri):
     'Look to see if a file:// uri exists'
@@ -50,6 +51,7 @@ class walk_ast(ast.NodeTransformer):
 
         # Repeat until we get a good-enough answer.
         phases = {}
+        print_count = 0
         while True:
             r = requests.post(f'{self._node}/query',
                 headers={"content-type": "application/octet-stream"},
@@ -81,6 +83,13 @@ class walk_ast(ast.NodeTransformer):
                         print (f'  {f}')
                 
                 return r
+
+            # See if we should print
+            if not self._quiet:
+                if print_count == 0:
+                    localtime = time.asctime( time.localtime(time.time()) )
+                    print (f'{localtime} : Status: {dr["phase"]}')
+                print_count = (print_count + 1) % 10
 
             # Wait a short amount of time before pinging again.
             if self._sleep_time > 0:
