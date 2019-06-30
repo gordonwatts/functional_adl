@@ -177,7 +177,6 @@ def use_exe_func_adl_server(a: ast.AST,
         node='http://localhost:30000',
         sleep_interval = 5,
         wait_for_finished=True,
-        dump_files=False,
         quiet=True):
     r'''
     Run a query against a func-adl server backend. The appropriate part of the AST is shipped there, and it is interpreted.
@@ -189,7 +188,6 @@ def use_exe_func_adl_server(a: ast.AST,
         sleep_interval:     How many seconds to wait between queries to the server when the data isn't yet ready
         wait_for_finished:  If true will wait until the dataset has been fully processed. Otherwise will
                             come back without a complete dataset just fine, as long as a least one file is done.
-        dump_files          If true, will print out the files that we are returning
         quiet               If true, run with as little output as possible.
 
     Returns:
