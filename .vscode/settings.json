@@ -41,5 +41,8 @@
         "xrootd"
     ],
     "docker.imageBuildContextPath": ".",
-    "python.autoComplete.addBrackets": true
+    "python.autoComplete.addBrackets": true,
+    "python.testing.autoTestDiscoverOnSaveEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestPath": "python -m pytest"
 }

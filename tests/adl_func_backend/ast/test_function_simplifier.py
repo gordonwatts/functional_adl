@@ -1,6 +1,9 @@
 # Some tests to look at function simplifier
 # Now the real test code starts.
 #from adl_func_backend.util_ast_LINQ import simplify_chained_calls
+import sys
+sys.path.append(".")
+
 from adl_func_client.util_ast_LINQ import replace_LINQ_operators
 from adl_func_backend.ast.function_simplifier import simplify_chained_calls
 from tests.util_debug_ast import normalize_ast
