@@ -18,6 +18,7 @@ from adl_func_backend.cpplib.cpp_functions import FunctionAST
 # extra stuff to the processing engine to special case things.
 import adl_func_backend.xAODlib.Jets
 import adl_func_backend.xAODlib.EventCollections
+import adl_func_backend.cpplib.math_utils
 
 import ast
 from shutil import copyfile

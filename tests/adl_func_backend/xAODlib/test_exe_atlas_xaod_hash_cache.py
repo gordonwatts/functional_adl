@@ -13,6 +13,13 @@ def build_ast() -> ast.AST:
         .AsROOTTTree('dude.root', 'forkme', 'JetPt') \
         .value(executor=lambda a: a)
 
+def build_ast_dr() -> ast.AST:
+    return EventDataset("file://root.root") \
+        .Select('lambda e: e.Jets("jets").SelectMany(lambda j: e.Tracks("InnerTracks")).First()') \
+        .Select('lambda e: DeltaR(e.eta(), e.phi(), e.eta(), e.phi())') \
+        .AsROOTTTree('dude.root', 'forkme', 'JetPt') \
+        .value(executor=lambda a: a)
+
 def build_ast_pandas() -> ast.AST:
     return EventDataset("file://root.root") \
         .Select('lambda e: e.Jets("jets").SelectMany(lambda j: e.Tracks("InnerTracks")).First()') \
@@ -30,6 +37,12 @@ def test_no_cache_ever():
         assert r.treename.startswith('forkme')
         # Because it isn't easy to change this in the ATLAS framework
         assert r.output_filename == 'ANALYSIS.root'
+
+def test_deltaR():
+    'Make sure there is no exception when doing a deltaR'
+    with tempfile.TemporaryDirectory() as local_run_dir:
+        r = use_executor_xaod_hash_cache(build_ast_dr(), local_run_dir)
+
 
 def test_cant_cache_non_root():
     try:
