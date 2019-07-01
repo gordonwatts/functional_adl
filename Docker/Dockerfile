@@ -12,4 +12,8 @@ COPY adl_func_backend/ ./adl_func_backend
 COPY adl_func_client/ ./adl_func_client
 COPY tools/ .
 
+# Turn this on so that stdout isn't buffered - otherwise logs in kubectl don't
+# show up until much later!
+ENV PYTHONUNBUFFERED=1
+
 CMD ["/bin/bash"]
