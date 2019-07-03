@@ -27,7 +27,6 @@ from typing import Union
 from collections import namedtuple
 
 # Convert between Python comparisons and C++.
-# TODO: Fill out all possible ones
 compare_operations = {
     ast.Lt: '<',
     ast.LtE: '<=',

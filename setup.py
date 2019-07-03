@@ -5,7 +5,6 @@ from setuptools import find_packages
 from distutils.core import setup
 from os import listdir
 
-# TODO: find_packages returns an empty array, what is missing?
 print (find_packages())
 xaod_template_files = listdir('adl_func_backend/R21Code')
 setup(name="functional_adl",
