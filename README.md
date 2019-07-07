@@ -35,3 +35,10 @@ root@50e6c11471b5:/usr/src/app# ls cache/
 root@50e6c11471b5:/usr/src/app# ls cache/10808753a6765ea3f15a10bf1b6c21a0
 ATestRun_eljob.py  package_CMakeLists.txt  query.cxx  query.h  rep_cache.pickle  runner.sh
 ```
+
+## Development
+
+To get testing working correctly you'll need to first get your environment setup:
+
+    - pip install pytest-asyncio
+
