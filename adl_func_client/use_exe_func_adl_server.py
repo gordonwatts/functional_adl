@@ -10,6 +10,7 @@ import numpy as np
 from adl_func_client.query_result_asts import ResultPandasDF, ResultTTree, ResultAwkwardArray
 import urllib
 import time
+import asyncio
 
 def _uri_exists(uri):
     'Look to see if a file:// uri exists'
@@ -173,7 +174,7 @@ class walk_ast(ast.NodeTransformer):
             col_names = frames[0].keys()
             return {c: np.concatenate([ar[c] for ar in frames]) for c in col_names}
 
-def use_exe_func_adl_server(a: ast.AST,
+async def use_exe_func_adl_server(a: ast.AST,
         node='http://localhost:30000',
         sleep_interval = 5,
         wait_for_finished=True,
@@ -198,5 +199,12 @@ def use_exe_func_adl_server(a: ast.AST,
 
     # The func-adl server can only deal with certian types of queries. So we need to
     # make sure we only send those. Do that by walking the nodes.
-    r = walk_ast(node, sleep_interval, partial_ds_ok=not wait_for_finished, quiet=quiet).visit(a)
-    return r
+    # This is syncrhonous code, unfortunately, so we have to have it running 
+    # in another thread to make this async (there is no way to fix this since the NodeVisitor
+    # class is totally synchronous).
+    walker = walk_ast(node, sleep_interval, partial_ds_ok=not wait_for_finished, quiet=quiet)
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, walker.visit, a)
+
+    # r = walk_ast(node, sleep_interval, partial_ds_ok=not wait_for_finished, quiet=quiet).visit(a)
+    # return r

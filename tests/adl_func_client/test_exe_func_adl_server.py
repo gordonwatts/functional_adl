@@ -3,8 +3,19 @@ from adl_func_client.event_dataset import EventDataset
 from adl_func_client.use_exe_func_adl_server import use_exe_func_adl_server
 from unittest.mock import Mock
 import pandas as pd
-
 import pytest
+import os
+import asyncio
+
+@pytest.yield_fixture()
+def event_loop():
+    'Get the loop done right on windows'
+    if os.name == 'nt':
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.SelectorEventLoop()
+    yield loop
+    loop.close()
 
 @pytest.fixture()
 def one_file_remote_query_return(monkeypatch):
@@ -112,9 +123,10 @@ def simple_query_ast_awkward():
         .AsAwkwardArray('JetPt') \
         .value(executor=lambda a: a)
 
-def test_simple_root_query(one_file_remote_query_return, simple_query_ast_ROOT):
+@pytest.mark.asyncio
+async def test_simple_root_query(one_file_remote_query_return, simple_query_ast_ROOT):
     'Most simple implementation'
-    r = use_exe_func_adl_server(simple_query_ast_ROOT)
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT)
     assert type(r) is dict
     assert 'files' in r
     assert len(r['files']) == 1
@@ -125,9 +137,10 @@ def test_print_files(one_file_remote_query_return, simple_query_ast_ROOT):
     'Simple query, print out things'
     _ = use_exe_func_adl_server(simple_query_ast_ROOT, quiet=False)
 
-def test_simple_root_query_not_read_at_first(one_file_remote_query_return_two, simple_query_ast_ROOT):
+@pytest.mark.asyncio
+async def test_simple_root_query_not_read_at_first(one_file_remote_query_return_two, simple_query_ast_ROOT):
     'Most simple implementation'
-    r = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0)
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0)
     assert type(r) is dict
     assert 'files' in r
     assert len(r['files']) == 1
@@ -137,59 +150,69 @@ def test_dump_phases(one_file_remote_query_return_two, simple_query_ast_ROOT):
     'Most simple implementation'
     _ = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, quiet=False)
 
-def test_first_file_good_enough(ds_returns_bit_by_bit, simple_query_ast_ROOT):
-    r = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, wait_for_finished=False)
+@pytest.mark.asyncio
+async def test_first_file_good_enough(ds_returns_bit_by_bit, simple_query_ast_ROOT):
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, wait_for_finished=False)
     assert len(r['files']) == 1
     assert r['files'][0][0] == 'file1.root'
 
-def test_wait_for_all_files(ds_returns_bit_by_bit, simple_query_ast_ROOT):
-    r = use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, wait_for_finished=True)
+@pytest.mark.asyncio
+async def test_wait_for_all_files(ds_returns_bit_by_bit, simple_query_ast_ROOT):
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT, sleep_interval=0, wait_for_finished=True)
     assert len(r['files']) == 2
     assert r['files'][0][0] == 'file1.root'
     assert r['files'][1][0] == 'file2.root'
 
-def test_get_pandas(one_actual_file, simple_query_ast_Pandas):
-    r = use_exe_func_adl_server(simple_query_ast_Pandas)
+@pytest.mark.asyncio
+async def test_get_pandas(one_actual_file, simple_query_ast_Pandas):
+    r = await use_exe_func_adl_server(simple_query_ast_Pandas)
     assert type(r) is pd.DataFrame
     assert len(r) == 356159
 
-def test_get_pandas_from_two_files(two_actual_files, simple_query_ast_Pandas):
-    r = use_exe_func_adl_server(simple_query_ast_Pandas)
+@pytest.mark.asyncio
+async def test_get_pandas_from_two_files(two_actual_files, simple_query_ast_Pandas):
+    r = await use_exe_func_adl_server(simple_query_ast_Pandas)
     assert type(r) is pd.DataFrame
     assert len(r) == 356159*2
 
-def test_get_awkward(one_actual_file, simple_query_ast_awkward):
-    r = use_exe_func_adl_server(simple_query_ast_awkward)
+@pytest.mark.asyncio
+async def test_get_awkward(one_actual_file, simple_query_ast_awkward):
+    r = await use_exe_func_adl_server(simple_query_ast_awkward)
     assert type(r) is dict
     assert len(r.keys()) == 1
     assert list(r.keys())[0] == b'JetPt'
     assert len(r[b'JetPt']) == 356159
 
-def test_get_awkward_from_two_files(two_actual_files, simple_query_ast_awkward):
-    r = use_exe_func_adl_server(simple_query_ast_awkward)
+@pytest.mark.asyncio
+async def test_get_awkward_from_two_files(two_actual_files, simple_query_ast_awkward):
+    r = await use_exe_func_adl_server(simple_query_ast_awkward)
     assert type(r) is dict
     assert len(r.keys()) == 1
     assert list(r.keys())[0] == b'JetPt'
     assert len(r[b'JetPt']) == 356159*2
 
-def test_prefer_local_access_not_on_this_system(one_file_with_local_access_nonlocal, simple_query_ast_ROOT):
+@pytest.mark.asyncio
+async def test_prefer_local_access_not_on_this_system(one_file_with_local_access_nonlocal, simple_query_ast_ROOT):
     'Check to make sure we do not choose the local access guy since we cannot see it'
-    r = use_exe_func_adl_server(simple_query_ast_ROOT)
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT)
     assert r['files'][0][0] == 'file.root'
     assert r['files'][0][1] == 'dudetree3'
 
-def test_prefer_local_access(one_file_with_local_access, simple_query_ast_ROOT):
+@pytest.mark.asyncio
+async def test_prefer_local_access(one_file_with_local_access, simple_query_ast_ROOT):
     'Check to make sure we do not choose the local access guy since we cannot see it'
-    r = use_exe_func_adl_server(simple_query_ast_ROOT)
+    r = await use_exe_func_adl_server(simple_query_ast_ROOT)
     assert r['files'][0][0] == 'file:///tests/adl_func_client/sample_root_result.root'
     assert r['files'][0][1] == 'dudetree3'
 
-def test_prefer_local_access_pandas(one_file_with_local_access, simple_query_ast_Pandas):
+@pytest.mark.asyncio
+async def test_prefer_local_access_pandas(one_file_with_local_access, simple_query_ast_Pandas):
     'Check to make sure we do not choose the local access guy since we cannot see it'
-    r = use_exe_func_adl_server(simple_query_ast_Pandas)
+    r = await use_exe_func_adl_server(simple_query_ast_Pandas)
     assert len(r) == 356159
  
-def test_prefer_local_access_awkward(one_file_with_local_access, simple_query_ast_awkward):
+@pytest.mark.asyncio
+async def test_prefer_local_access_awkward(one_file_with_local_access, simple_query_ast_awkward):
     'Check to make sure we do not choose the local access guy since we cannot see it'
-    r = use_exe_func_adl_server(simple_query_ast_awkward)
+    r = await use_exe_func_adl_server(simple_query_ast_awkward)
     assert len(r[b'JetPt']) == 356159
