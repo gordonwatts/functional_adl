@@ -9,6 +9,7 @@ from typing import List, Optional
 import requests
 from time import sleep
 from adl_func_backend.xAODlib.exe_atlas_xaod_docker import use_executor_xaod_docker
+import asyncio
 
 # Resolvers:
 def resolve_file(parsed_url, url:str):
@@ -95,7 +96,7 @@ class dataset_finder (ast.NodeTransformer):
         self.DatasetsLocallyResolves = True
         return EventDataset(u_list)
 
-def use_executor_dataset_resolver(a: ast.AST, chained_executor=use_executor_xaod_docker):
+async def use_executor_dataset_resolver(a: ast.AST, chained_executor=use_executor_xaod_docker):
     'Run - keep re-doing query until we crash or we can run'
     finder = dataset_finder()
     am = None
@@ -103,9 +104,9 @@ def use_executor_dataset_resolver(a: ast.AST, chained_executor=use_executor_xaod
         am = finder.visit(a)
         if finder.DatasetsLocallyResolves:
             break
-        sleep(5*60)
+        await asyncio.sleep(5*60)
     
     # Ok, we have a modified AST and we can now get it processed.
     if am is None:
         raise BaseException("internal programming error - resolved AST should not be null")
-    return chained_executor(am)
+    return await chained_executor(am)

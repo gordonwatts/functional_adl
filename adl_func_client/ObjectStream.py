@@ -3,8 +3,10 @@ import adl_func_client.query_ast as query_ast
 from adl_func_client.query_result_asts import ResultTTree, ResultAwkwardArray, ResultPandasDF
 from adl_func_client.util_ast_LINQ import parse_as_ast
 # import ast
-from typing import Any
-
+from typing import Any, Callable
+import asyncio
+import ast
+import os
 
 class ObjectStream:
     r'''
@@ -102,7 +104,53 @@ class ObjectStream:
         '''
         return ObjectStream(ResultAwkwardArray(self._ast, columns))
 
-    def value(self, executor = None) -> Any:
+    def _get_executor(self, executor: Callable[[ast.AST], Any] = None) -> Callable[[ast.AST], Any]:
+        r'''
+        Returns an executor that can be used to run this.
+        Logic seperated out as it is used from several different places.
+
+        Arguments:
+            executor            Callback to run the AST. Can be synchronous or coroutine.
+
+        Returns:
+            An executor that is either synchronous or a coroutine.
+        '''
+        if executor is not None:
+            return executor
+
+        # By default we use the in-process docker executor which is, relatively speaking
+        # portable as long as you have docker installed.
+        from adl_func_backend.xAODlib.exe_atlas_xaod_docker import use_executor_xaod_docker
+        return use_executor_xaod_docker
+
+    async def _exe_as_task(self, executor: Callable[[ast.AST], Any]) -> Any:
+        'Run the executor as a task, no matter if it is a co routine or not'
+        r = executor(self._ast)
+
+        if asyncio.iscoroutine(r):
+            return await r
+        else:
+            return r
+
+    async def future_value(self, executor: Callable[[ast.AST], Any] = None) -> None:
+        r'''
+        Start the evaluation of the AST. Returns a promise that can be used to check on the progress.
+        Built to allow one to make lots of requests at the same time, and have a back-end server address
+        them simultaneously.
+
+        Args:
+            executor:       A function that when called with the ast will return a future for the
+                            result. If None, then uses the default executor (or throws if none is
+                            defined).
+
+        '''
+        # Fetch the executor
+        exe = self._get_executor(executor)
+
+        # We do not know if this thing is synchronous or not, so we have to wrap it in a task.
+        return await asyncio.create_task(self._exe_as_task(exe))
+
+    def value(self, executor: Callable[[ast.AST], Any] = None) -> Any:
         r"""
         Trigger the evaluation of the AST. Returns the results of the execution to the caller.
 
@@ -113,12 +161,11 @@ class ObjectStream:
         Returns:
             Whatever the executor evaluates to.
         """
-        # See if we are given an executor
-        if executor is not None:
-            return executor(self._ast)
-
-
-        # By default we use the in-process docker executor which is, relatively speaking
-        # portable as long as you have docker installed.
-        from adl_func_backend.xAODlib.atlas_xaod_executor import use_executor_xaod_docker
-        return use_executor_xaod_docker(self._ast)
+        # Run our own event loop to make sure we get back the result and we are self contained
+        # and don't stomp on anyone. Since we aren't just waiting on sockets, we will have to
+        # have an OS difference here.
+        if os.name == 'nt':
+            loop = asyncio.ProactorEventLoop() # for subprocess' pipes on Windows
+        else:
+            loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.future_value(executor))

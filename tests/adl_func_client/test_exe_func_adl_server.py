@@ -123,7 +123,7 @@ def test_simple_root_query(one_file_remote_query_return, simple_query_ast_ROOT):
 
 def test_print_files(one_file_remote_query_return, simple_query_ast_ROOT):
     'Simple query, print out things'
-    _ = use_exe_func_adl_server(simple_query_ast_ROOT, dump_files=True)
+    _ = use_exe_func_adl_server(simple_query_ast_ROOT, quiet=False)
 
 def test_simple_root_query_not_read_at_first(one_file_remote_query_return_two, simple_query_ast_ROOT):
     'Most simple implementation'

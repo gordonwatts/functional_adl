@@ -7,6 +7,7 @@ import tempfile
 from urllib.parse import urlparse
 import subprocess
 import os
+import asyncio
 
 # Use this to turn on dumping of output and C++
 dump_running_log = True
@@ -23,7 +24,7 @@ result_handlers = {
         rh.cpp_pandas_rep: rh.extract_pandas_result,
 }
 
-def use_executor_xaod_docker(a: ast.AST):
+async def use_executor_xaod_docker(a: ast.AST):
     '''
     Execute a query on the local machine, in a docker container.
     '''
@@ -59,13 +60,16 @@ def use_executor_xaod_docker(a: ast.AST):
 
         # Build a docker command to run this.
         docker_cmd = f'docker run --rm -v {f_spec.output_path}:/scripts -v {f_spec.output_path}:/results -v {datafile_dir}:/data  atlas/analysisbase:21.2.62 /scripts/{f_spec.main_script} /results'
-        if dump_running_log:
-            r = subprocess.call(docker_cmd, stderr=subprocess.STDOUT, shell=False)
-            print ("Result of run: {0}".format(r))
-        else:
-            r = subprocess.call(docker_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
-        if r != 0:
-            raise BaseException("Docker command failed with error {0}".format(r))
+        proc = await asyncio.create_subprocess_shell(docker_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE)
+        p_stdout, p_stderr = await proc.communicate()
+        if proc.returncode != 0 or dump_running_log:
+            print (f"Result of run: {proc.returncode}")
+            print (f'Output:\n{p_stdout}')
+            print (f'Error:\n{p_stderr}')
+        if proc.returncode != 0:
+            raise BaseException("Docker command failed with error {0}".format(proc.returncode))
         if dump_cpp:
             os.system("type " + os.path.join(str(local_run_dir), "query.cxx"))
 
