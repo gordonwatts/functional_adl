@@ -52,7 +52,6 @@ def use_executor_xaod_hash_cache(a: ast.AST, cache_path: str) -> HashXAODExecuto
     f_spec = exe.write_cpp_files(exe.apply_ast_transformations(a), query_file_path)
 
     # Write out the basic info for the result rep and the runner into that location.
-    # Note we don't cache the output filename - this isn't going to be relavent for this work.
     result_cache = (hash, f_spec.main_script, f_spec.result_rep.treename, f_spec.result_rep.filename)
     with open(os.path.join(query_file_path, 'rep_cache.pickle'), 'wb') as f:
         pickle.dump(result_cache, f)
