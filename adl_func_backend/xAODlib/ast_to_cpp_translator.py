@@ -678,6 +678,10 @@ class query_ast_visitor(ast.NodeVisitor):
         self._gc.add_book_statement(statement.book_ttree(tree_name, var_names))
 
         # Note that the output file and tree are what we are going to return.
+        # The output filename is fixed - the hose code in AnalysisBase has that hard coded.
+        # To allow it to be different we have to modify that template too, and pass the
+        # information there. If more than one tree is written, the current code would
+        # lead to a bug.
         node.rep = rh.cpp_ttree_rep("ANALYSIS.root", tree_name, self._gc.current_scope())
 
         # For each varable we need to save, cache it or push it back, depending.
