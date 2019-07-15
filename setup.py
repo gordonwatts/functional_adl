@@ -21,7 +21,7 @@ setup(name="functional_adl",
     download_url="http://iris-hep.org",
     license="TBD",
     test_suite="tests",
-    install_requires=["jinja2>=2.0.0", "requests>=2.0.0"],
+    install_requires=["jinja2>=2.0.0", "requests>=2.0.0", "pandas>=0.24.0", "uproot>=3.7.0"],
     setup_requires=["pytest-runner"],
     tests_require=["pytest>=3.9"],
     classifiers=[
