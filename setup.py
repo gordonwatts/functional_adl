@@ -8,7 +8,7 @@ from os import listdir
 print (find_packages())
 xaod_template_files = listdir('adl_func_backend/R21Code')
 setup(name="functional_adl",
-    version='0.1.0',
+    version='1.0.0-alpha.1',
     packages=find_packages(exclude=['tests']),
     scripts=[],
     description="Functional Analysis Description Language",
@@ -21,7 +21,7 @@ setup(name="functional_adl",
     download_url="http://iris-hep.org",
     license="TBD",
     test_suite="tests",
-    install_requires=[],
+    install_requires=["jinja2>=2.0.0", "requests>=2.0.0"],
     setup_requires=["pytest-runner"],
     tests_require=["pytest>=3.9"],
     classifiers=[
