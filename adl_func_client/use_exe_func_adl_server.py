@@ -11,6 +11,7 @@ from adl_func_client.query_result_asts import ResultPandasDF, ResultTTree, Resul
 import urllib
 import time
 import asyncio
+from retry import retry
 
 def _uri_exists(uri):
     'Look to see if a file:// uri exists'
@@ -22,6 +23,15 @@ def _uri_exists(uri):
     # Give a chance for a relative path.
     return os.path.exists(r.path[1:])
 
+@retry(tries=10, delay=0.5)
+def _make_request(node:str, ast_data):
+    'Make the request from the end point'
+    r = requests.post(f'{node}/query',
+        headers={"content-type": "application/octet-stream"},
+        data=ast_data)
+
+    # Need to handle errors (see https://github.com/gordonwatts/functional_adl/issues/22).
+    return r.json()
 
 class walk_ast(ast.NodeTransformer):
     'Walk the AST, replace the ROOT lookup node by something we know how to deal with.'
@@ -54,12 +64,7 @@ class walk_ast(ast.NodeTransformer):
         phases = {}
         print_count = 0
         while True:
-            r = requests.post(f'{self._node}/query',
-                headers={"content-type": "application/octet-stream"},
-                data=ast_data)
-
-            # Need to handle errors (see https://github.com/gordonwatts/functional_adl/issues/22).
-            dr = r.json()
+            dr = _make_request(self._node, ast_data)
 
             # Accumulate statistics
             p = dr['phase']
