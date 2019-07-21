@@ -39,10 +39,11 @@ def use_executor_xaod_hash_cache(a: ast.AST, cache_path: str) -> HashXAODExecuto
 
     # Next, see if the hash file is there.
     query_file_path = os.path.join(cache_path, hash)
-    if os.path.isdir(query_file_path):
+    cache_file = os.path.join(query_file_path, 'rep_cache.pickle')
+    if os.path.isfile(cache_file):
         # We have a cache hit. Look it up.
         file = find_dataset(a)
-        with open(os.path.join(query_file_path, 'rep_cache.pickle'), 'rb') as f:
+        with open(cache_file, 'rb') as f:
             result_cache = pickle.load(f)
             return _build_result(result_cache, file.url)
 
