@@ -32,10 +32,15 @@ def resolve_localds(parsed_url, url:str):
     # Turn these into file url's, relative to the file location returned.
     return [f for f in result['filelist']]
 
+def resolve_root(parsed_url, url:str):
+    'We are given a root schema - this points to a single file. So we ignore it and just use it. No easy way to check it...'
+    return [url]
+
 # We use this here so we can mock things for testing
 resolve_callbacks = {
     'file': resolve_file,
-    'localds': resolve_localds
+    'localds': resolve_localds,
+    'root': resolve_root
 }
 
 class GridDsException (BaseException):

@@ -65,6 +65,7 @@ def local_ds_file():
         fp.write(b'hi')
         yield fp.name
 
+
 # desktop-rucio download dataset
 def test_ds_good(already_present_ds):
     url = 'localds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r10724_r10726_p3795'
@@ -121,3 +122,8 @@ def test_weird_url_scheme():
     except GridDsException:
         pass
 
+def test_root_url_scheme():
+        url = 'root://eosuser.cern.ch/gwatts/user'
+        r = resolve_local_ds_url(url)
+        assert len(r) == 1
+        assert r[0] == url

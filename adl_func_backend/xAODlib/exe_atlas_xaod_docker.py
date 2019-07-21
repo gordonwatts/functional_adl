@@ -42,24 +42,28 @@ async def use_executor_xaod_docker(a: ast.AST):
         with open(f'{local_run_dir}/filelist.txt', 'w') as flist_out:
             for u in f_spec.input_urls:
                 (scheme, netloc, path, _, _, _) = urlparse(u)
-                # Do a sanity check.
-                if scheme != 'file':
-                    raise AtlasXAODDockerException(f'Only URLs with scheme `file` can be used: {u}')
-                if len(netloc) != 0:
-                    raise AtlasXAODDockerException(f'Only file URLs that have no node specification can be used (e.g. file:///path) : {u}')
-                ds_path = path[1:]
-                datafile = os.path.basename(ds_path)
-                flist_out.write(f'/data/{datafile}\n')
 
-                if datafile_dir is None:
-                    datafile_dir = os.path.dirname(ds_path)
+                # How we process this is going to depend a bit on the scheme that we are going to handle.
+                if scheme == 'file':
+                    if len(netloc) != 0:
+                        raise AtlasXAODDockerException(f'Only file URLs that have no node specification can be used (e.g. file:///path) : {u}')
+                    ds_path = path[1:]
+                    datafile = os.path.basename(ds_path)
+                    flist_out.write(f'/data/{datafile}\n')
+                    if datafile_dir is None:
+                        datafile_dir = os.path.dirname(ds_path)
+                    else:
+                        t = os.path.dirname(ds_path)
+                        if t != datafile_dir:
+                            raise BaseException(f'Data files must be from the same directory. Have seen {t} and {datafile_dir} so far.')
+                elif scheme == 'root':
+                    flist_out.write(f'{scheme}://{netloc}/{path}')
                 else:
-                    t = os.path.dirname(ds_path)
-                    if t != datafile_dir:
-                        raise BaseException(f'Data files must be from the same directory. Have seen {t} and {datafile_dir} so far.')
+                    raise AtlasXAODDockerException(f'Only URLs with scheme `file` can be used: {u}')
 
         # Build a docker command to run this.
-        docker_cmd = f'docker run --rm -v {f_spec.output_path}:/scripts -v {f_spec.output_path}:/results -v {datafile_dir}:/data  atlas/analysisbase:21.2.62 /scripts/{f_spec.main_script} /results'
+        datafile_mount = "" if datafile_dir is None else f'-v {datafile_dir}:/data'
+        docker_cmd = f'docker run --rm -v {f_spec.output_path}:/scripts -v {f_spec.output_path}:/results {datafile_mount} atlas/analysisbase:21.2.62 /scripts/{f_spec.main_script} /results'
         proc = await asyncio.create_subprocess_shell(docker_cmd,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE)

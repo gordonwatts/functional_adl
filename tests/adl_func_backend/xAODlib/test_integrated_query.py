@@ -2,7 +2,7 @@
 
 # These are very long running do not run them normally!!
 import pytest
-pytestmark = pytest.mark.skipif(True, reason='Long running tests, skipped except when run by hand')
+#pytestmark = pytest.mark.skipif(True, reason='Long running tests, skipped except when run by hand')
 
 # These are *long* tests and so should not normally be run. Each test can take of order 30 seconds or so!!
 from adl_func_client.event_dataset import EventDataset
@@ -14,6 +14,7 @@ import os
 # The file we are going to go after:
 f_location = 'file://G:/mc16_13TeV/AOD.16300985._000011.pool.root.1'
 f_location = 'file://C:/Users/gordo/Documents/Code/IRIS-HEP/AOD.16300985._000011.pool.root.1'
+f_root_remote = EventDataset('root://194.12.190.44:2300//DAOD_EXOT15.17545510._000001.pool.root.1')
 f = EventDataset(f_location)
 f_multiple = EventDataset([f_location, f_location])
 f_ds = EventDataset(r'localds://mc16_13TeV.311309.MadGraphPythia8EvtGen_A14NNPDF31LO_HSS_LLP_mH125_mS5_ltlow.deriv.DAOD_EXOT15.e7270_e5984_s3234_r9364_r9315_p3795')
@@ -73,6 +74,16 @@ def test_flatten_array():
         .AsPandasDF('JetPt') \
         .value(executor=use_executor_dataset_resolver)
     assert int(training_df.iloc[0]['JetPt']) == 257
+    assert int(training_df.iloc[0]['JetPt']) != int(training_df.iloc[1]['JetPt'])
+
+def test_flatten_array_remote():
+    # A very simple flattening of arrays
+    training_df = f_root_remote \
+        .SelectMany('lambda e: e.Jets("AntiKt4EMTopoJets")') \
+        .Select('lambda j: j.pt()/1000.0') \
+        .AsPandasDF('JetPt') \
+        .value(executor=use_executor_dataset_resolver)
+    assert int(training_df.iloc[0]['JetPt']) == 64
     assert int(training_df.iloc[0]['JetPt']) != int(training_df.iloc[1]['JetPt'])
 
 def test_First_two_outer_loops():
