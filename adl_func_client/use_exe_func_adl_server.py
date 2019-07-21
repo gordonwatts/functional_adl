@@ -12,6 +12,12 @@ import urllib
 import time
 import asyncio
 from retry import retry
+import logging
+
+class FuncADLServerException (BaseException):
+    'Thrown when an exception happens contacting the server'
+    def __init__(self, msg):
+        BaseException.__init__(self, msg)
 
 def _uri_exists(uri):
     'Look to see if a file:// uri exists'
@@ -66,6 +72,9 @@ class walk_ast(ast.NodeTransformer):
             access_list = ['localfiles', 'httpfiles']
         access_list = [a for a in access_list if a in response]
 
+        if len(access_list) == 0:
+            raise FuncADLServerException(f'No viable data sources came back accessible on platform "{os.name}". The complete response from the server was {response}."')
+
         # Next, check for visibility of all of these things.
         pairs = zip(*[response[n] for n in access_list])
         r = [_best_access(fr) for fr in pairs]
@@ -82,6 +91,7 @@ class walk_ast(ast.NodeTransformer):
         print_count = 0
         while True:
             dr = _make_request(self._node, ast_data)
+            logging.info(f'returned info: {dr}')
 
             # Accumulate statistics
             p = dr['phase']
@@ -121,6 +131,8 @@ class walk_ast(ast.NodeTransformer):
     def _clean_name(self, fname):
         'Clean up a name. Mostly dealing with URIs, uproot, and windows.'
         p = urllib.parse.urlparse(fname)
+        if p.scheme != 'file':
+            return fname
         if os.path.exists(p.path):
             return fname
         return f'file://{p.path[1:]}'

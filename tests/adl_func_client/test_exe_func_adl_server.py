@@ -1,6 +1,6 @@
 # Tests to make sure we get at the functionality in the remote executor.
 from adl_func_client.event_dataset import EventDataset
-from adl_func_client.use_exe_func_adl_server import use_exe_func_adl_server
+from adl_func_client.use_exe_func_adl_server import use_exe_func_adl_server, FuncADLServerException
 from unittest.mock import Mock
 import pandas as pd
 import pytest
@@ -64,7 +64,14 @@ def one_actual_file(monkeypatch):
     status_mock = Mock()
     push_mock.return_value = status_mock
     monkeypatch.setattr('requests.post', push_mock)
-    status_mock.json.return_value={'files': [['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
+    status_mock.json.return_value={
+        'files': [
+            ['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3']
+            ],
+        'localfiles': [
+            ['file:///tests/adl_func_client/sample_root_result.root', 'dudetree3']
+            ],
+        'phase': 'done', 'done': True, 'jobs': 1}
     return None
 
 @pytest.fixture()
@@ -74,7 +81,16 @@ def two_actual_files(monkeypatch):
     status_mock = Mock()
     push_mock.return_value = status_mock
     monkeypatch.setattr('requests.post', push_mock)
-    status_mock.json.return_value={'files': [['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3'], ['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3']], 'phase': 'done', 'done': True, 'jobs': 1}
+    status_mock.json.return_value={
+        'files': [
+                    ['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3'],
+                    ['root://localhost/tests/adl_func_client/sample_root_result.root', 'dudetree3']
+                ],
+        'localfiles': [
+                    ['file:///tests/adl_func_client/sample_root_result.root', 'dudetree3'],
+                    ['file:///tests/adl_func_client/sample_root_result.root', 'dudetree3']
+                ],
+        'phase': 'done', 'done': True, 'jobs': 1}
     return None
 
 @pytest.fixture()
@@ -248,3 +264,11 @@ async def test_prefer_http_over_root_nt(one_file_root_local_and_http, simple_que
     r = await use_exe_func_adl_server(simple_query_ast_ROOT)
     assert r['files'][0][0] == 'http://localhost:30000/file.root'
     assert r['files'][0][1] == 'dudetree3'
+
+@pytest.mark.asyncio
+async def test_nothing_good(one_file_remote_query_return, simple_query_ast_ROOT, running_on_nt):
+    try:
+        _ = await use_exe_func_adl_server(simple_query_ast_ROOT)
+        assert False
+    except FuncADLServerException:
+        return
