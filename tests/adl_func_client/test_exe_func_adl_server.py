@@ -238,7 +238,7 @@ async def test_prefer_local_access_awkward(one_file_with_local_access, simple_qu
     assert len(r[b'JetPt']) == 356159
 
 @pytest.mark.asyncio
-async def test_prefer_root_over_http_poxis(one_file_root_local_and_http, simple_query_ast_ROOT, running_on_posix):
+async def test_prefer_root_over_http_posix(one_file_root_local_and_http, simple_query_ast_ROOT, running_on_posix):
     r = await use_exe_func_adl_server(simple_query_ast_ROOT)
     assert r['files'][0][0] == 'root://localhost/file.root'
     assert r['files'][0][1] == 'dudetree3'

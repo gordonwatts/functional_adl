@@ -35,17 +35,17 @@ def _make_request(node:str, ast_data):
 
 def _best_access(files):
     'Given a list of ways to a file, determine which one is best'
-    for uri, tname in files:
+    for uri, t_name in files:
         r = urllib.parse.urlparse(uri)
         if r.scheme == 'file':
             if os.path.exists(r.path):
-                return [uri, tname]
+                return [uri, t_name]
             if os.path.exists(r.path[1:]):
-                return [uri, tname]
+                return [uri, t_name]
         else:
             # A different method of accessing besides a local file. Assume it is
             # awesome.
-            return [uri, tname]
+            return [uri, t_name]
 
 class walk_ast(ast.NodeTransformer):
     'Walk the AST, replace the ROOT lookup node by something we know how to deal with.'
@@ -148,7 +148,7 @@ class walk_ast(ast.NodeTransformer):
         Returns:
             df:                 The data frame, ready to go, with all events loaded.
         '''
-        # Build the root ttree result so we can get a list of files, and
+        # Build the root TTree result so we can get a list of files, and
         # render it.
         a_root = ResultTTree(node.source,
             node.column_names,
@@ -177,7 +177,7 @@ class walk_ast(ast.NodeTransformer):
         Returns:
             df:                 The data frame, ready to go, with all events loaded.
         '''
-        # Build the root ttree result so we can get a list of files, and
+        # Build the root TTree result so we can get a list of files, and
         # render it.
         a_root = ResultTTree(node.source,
             node.column_names,
