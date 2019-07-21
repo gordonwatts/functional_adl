@@ -33,6 +33,20 @@ def _make_request(node:str, ast_data):
     # Need to handle errors (see https://github.com/gordonwatts/functional_adl/issues/22).
     return r.json()
 
+def _best_access(files):
+    'Given a list of ways to a file, determine which one is best'
+    for uri, tname in files:
+        r = urllib.parse.urlparse(uri)
+        if r.scheme == 'file':
+            if os.path.exists(r.path):
+                return [uri, tname]
+            if os.path.exists(r.path[1:]):
+                return [uri, tname]
+        else:
+            # A different method of accessing besides a local file. Assume it is
+            # awesome.
+            return [uri, tname]
+
 class walk_ast(ast.NodeTransformer):
     'Walk the AST, replace the ROOT lookup node by something we know how to deal with.'
     def __init__(self, node:ast.AST, sleep_interval_seconds:int, partial_ds_ok:bool, quiet:bool):
@@ -45,13 +59,16 @@ class walk_ast(ast.NodeTransformer):
     def extract_filespec(self, response: dict):
         'Given the dictionary of info that came back from the webservice, extract the proper set of files'
 
-        # If there is nothing to use to determine how to get at the files...
-        if 'localfiles' not in response:
-            return response['files']
+        # Get a list of the valid items we can load into uproot
+        access_list = ['localfiles', 'files', 'httpfiles']
+        if os.name == 'nt':
+            # We can't do root:// easily on windows, so drop it.
+            access_list = ['localfiles', 'httpfiles']
+        access_list = [a for a in access_list if a in response]
 
-        # Prefer local files - but only if they are locally visible.
-        pairs = zip(response['files'], response['localfiles'])
-        r = [lfl if _uri_exists(lfl[0]) else fl for fl, lfl in pairs]
+        # Next, check for visibility of all of these things.
+        pairs = zip(*[response[n] for n in access_list])
+        r = [_best_access(fr) for fr in pairs]
         return r
 
     def visit_ResultTTree(self, node: ResultTTree):
