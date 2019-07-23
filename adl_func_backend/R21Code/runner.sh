@@ -1,5 +1,9 @@
 #!/bin/env bash
 
+# If any problem occurs during the running of this script we want to bail and make sure that
+# everyone above us knows what happened.
+set -e
+
 # Meant to be invokved in an ATLAS R21 analysis container.
 # This follows the tutorial from https://atlassoftwaredocs.web.cern.ch/ABtutorial/release_setup/
 
