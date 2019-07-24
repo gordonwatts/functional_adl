@@ -18,7 +18,7 @@ class ResultTTree(ast.AST):
         self.column_names = (column_names,) if type(column_names) == str else column_names
         self.tree_name = tree_name
         self.filename = filename
-        self._fields = ('source',)
+        self._fields = ('source', 'column_names', 'tree_name')
 
 # Tree result for an individual file. Contains the tree name and the filename url.
 ROOTTreeFileInfo = namedtuple('ROOTTreeFileInfo', 'filename treename')
@@ -42,7 +42,7 @@ class ResultPandasDF(ast.AST):
         '''
         self.source = source
         self.column_names = column_names
-        self._fields=('source',)
+        self._fields=('source', 'column_names')
 
 class ResultAwkwardArray(ast.AST):
     r'''
@@ -59,4 +59,4 @@ class ResultAwkwardArray(ast.AST):
         '''
         self.source = source
         self.column_names = column_names
-        self._fields=('source',)
+        self._fields=('source', 'column_names')
