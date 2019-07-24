@@ -42,3 +42,10 @@ To get testing working correctly you'll need to first get your environment setup
 
     - pip install pytest-asyncio
 
+## Debugging Tips
+
+Add the following lines in your notebook and you can see what comes back from the server:
+```
+import logging
+logging.basicConfig(level=logging.INFO)
+```

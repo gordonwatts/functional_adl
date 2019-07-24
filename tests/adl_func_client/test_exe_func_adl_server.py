@@ -118,6 +118,16 @@ def ds_returns_bit_by_bit(monkeypatch):
     return None
 
 @pytest.fixture()
+def query_crashes(monkeypatch):
+    'Setup mocks for a remote call that returns a single valid file to read from'
+    push_mock = Mock()
+    status_mock = Mock()
+    push_mock.return_value = status_mock
+    monkeypatch.setattr('requests.post', push_mock)
+    status_mock.json.return_value={'files': [], 'phase': 'crashed_request', 'done': True, 'jobs': 1, 'message': "failed totally", 'log': ['line1', 'line2', 'line3']}
+    return None
+
+@pytest.fixture()
 def running_on_posix(monkeypatch):
     'os.name returns posix'
     monkeypatch.setattr('os.name', 'posix')
@@ -271,4 +281,13 @@ async def test_nothing_good(one_file_remote_query_return, simple_query_ast_ROOT,
         _ = await use_exe_func_adl_server(simple_query_ast_ROOT)
         assert False
     except FuncADLServerException:
+        return
+
+@pytest.mark.asyncio
+async def test_crashed_query(simple_query_ast_ROOT, running_on_posix, query_crashes):
+    try:
+        await use_exe_func_adl_server(simple_query_ast_ROOT)
+        assert False
+    except FuncADLServerException as e:
+        assert "line1" in str(e)
         return

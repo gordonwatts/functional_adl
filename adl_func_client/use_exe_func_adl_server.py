@@ -13,6 +13,7 @@ import time
 import asyncio
 from retry import retry
 import logging
+from io import StringIO
 
 class FuncADLServerException (BaseException):
     'Thrown when an exception happens contacting the server'
@@ -108,6 +109,18 @@ class walk_ast(ast.NodeTransformer):
                     print ('Where we spent time waiting for column data:')
                     for k in phases.keys():
                         print (f'  {k}: {phases[k]*100/total}%')
+
+                if dr['phase'] != 'done':
+                    # Yikes! Something bad happened. Try to assemble a error messages and blow up.
+                    with StringIO() as s:
+                        print('The request failed:', file=s)
+                        if 'message' in dr:
+                            print(f'  Message: {dr["message"]}', file=s)
+                        if 'log' in dr:
+                            print('  Log lines:', file=s)
+                            for l in dr['log']:
+                                print(f'    {l}', file=s)
+                        raise FuncADLServerException(s.getvalue())
 
                 r = {'files': self.extract_filespec(dr)}
                 if not self._quiet:
