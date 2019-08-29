@@ -86,15 +86,6 @@ def test_selectmany_where():
     assert zpt_first is not zpt_second
     assert zpt_first.func is not zpt_second.func
 
-def test_selectmany_where():
-    a = util_process("jets.SelectMany(lambda j: j.tracks).Select(lambda z: z.pt()).Where(lambda k: k>40)", "jets.SelectMany(lambda e: e.tracks.Where(lambda t: t.pt()>40).Select(lambda k: k.pt()))")
-    print(ast.dump(a))
-    # Make sure the z.pT() was a deep copy, not a shallow one.
-    zpt_first = a.body[0].value.selection.body.source.filter.body.left
-    zpt_second = a.body[0].value.selection.body.selection.body
-    assert zpt_first is not zpt_second
-    assert zpt_first.func is not zpt_second.func
-
 ###############
 # Testing first
 
