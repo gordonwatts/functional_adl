@@ -38,7 +38,11 @@ def _make_request(node:str, ast_data):
         data=ast_data)
 
     # Need to handle errors (see https://github.com/gordonwatts/functional_adl/issues/22).
-    return r.json()
+    try:
+        return r.json()
+    except Exception as e:
+        # Wrap the error in the full text if possible.
+        raise FuncADLServerException(f'Error from server "{str(e)}" while parsing response "{r.text}"') from e
 
 def _best_access(files):
     'Given a list of ways to a file, determine which one is best'
