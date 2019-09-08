@@ -10,5 +10,12 @@
             "args": ["-m", "pip", "install", "."],
             "problemMatcher": []
         }
+        {
+            "label": "Create Wheel",
+            "type": "shell",
+            "command": "${config:python.pythonPath}",
+            "args": ["-m", "pip", "wheel", "."],
+            "problemMatcher": []
+        }
     ]
 }

@@ -8,7 +8,7 @@ from os import listdir
 print (find_packages())
 xaod_template_files = listdir('adl_func_backend/R21Code')
 setup(name="functional_adl",
-    version='1.0.0-alpha.6',
+    version='1.0.0-alpha.7',
     packages=find_packages(exclude=['tests']),
     scripts=[],
     description="Functional Analysis Description Language",
