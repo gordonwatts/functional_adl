@@ -9,7 +9,7 @@
             "command": "${config:python.pythonPath}",
             "args": ["-m", "pip", "install", "."],
             "problemMatcher": []
-        }
+        },
         {
             "label": "Create Wheel",
             "type": "shell",
