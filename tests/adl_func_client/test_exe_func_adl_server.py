@@ -129,14 +129,18 @@ def query_crashes(monkeypatch):
 
 @pytest.fixture()
 def running_on_posix(monkeypatch):
-    'os.name returns posix'
-    monkeypatch.setattr('os.name', 'posix')
+    'XRootD package availible'
+    find_spec_mock = Mock()
+    find_spec_mock.return_value = "hi"
+    monkeypatch.setattr('importlib.util.find_spec', find_spec_mock)
     return None
 
 @pytest.fixture()
 def running_on_nt(monkeypatch):
-    'os.name returns nt'
-    monkeypatch.setattr('os.name', 'nt')
+    'no XRootD package'
+    find_spec_mock = Mock()
+    find_spec_mock.return_value = None
+    monkeypatch.setattr('importlib.util.find_spec', find_spec_mock)
     return None
 
 @pytest.fixture()

@@ -3,6 +3,8 @@ import ast
 import requests
 import pickle
 import os
+import importlib.util
+import sys
 import time
 import uproot
 import pandas as pd
@@ -70,15 +72,15 @@ class walk_ast(ast.NodeTransformer):
     def extract_filespec(self, response: dict):
         'Given the dictionary of info that came back from the webservice, extract the proper set of files'
 
-        # Get a list of the valid items we can load into uproot
+        # Get a list of the valid items we can load into uproot.
         access_list = ['localfiles', 'files', 'httpfiles']
-        if os.name == 'nt':
+        if importlib.util.find_spec('XRootD') is None:
             # We can't do root:// easily on windows, so drop it.
             access_list = ['localfiles', 'httpfiles']
         access_list = [a for a in access_list if a in response]
 
         if len(access_list) == 0:
-            raise FuncADLServerException(f'No viable data sources came back accessible on platform "{os.name}". The complete response from the server was {response}."')
+            raise FuncADLServerException(f'No viable data sources came back accessible. The complete response from the server was {response}."')
 
         # Next, check for visibility of all of these things.
         pairs = zip(*[response[n] for n in access_list])
