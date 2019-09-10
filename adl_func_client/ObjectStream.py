@@ -153,6 +153,9 @@ class ObjectStream:
     def value(self, executor: Callable[[ast.AST], Any] = None) -> Any:
         r"""
         Trigger the evaluation of the AST. Returns the results of the execution to the caller.
+        WARNING: It is an error to call this if the event loop for async futures is already running.
+                 This comes up most suprisingly when running in a Jupyter notebook, which starts an
+                 event loop behind your back. So you must use `await` and `future_value`.
 
         Args:
             executor:       A function that when called with the ast will return the result. If
@@ -161,6 +164,14 @@ class ObjectStream:
         Returns:
             Whatever the executor evaluates to.
         """
+        # Event loops to run async tasks in python are "funny". We can't wait for a task if
+        # one of those loops is running. So that is improper use of the library.
+        try:
+            loop = asyncio.get_running_loop()
+            raise runtime_error ('A python async event loop is already running. You must use future_value.')
+        except:
+            pass
+
         # Run our own event loop to make sure we get back the result and we are self contained
         # and don't stomp on anyone. Since we aren't just waiting on sockets, we will have to
         # have an OS difference here.
