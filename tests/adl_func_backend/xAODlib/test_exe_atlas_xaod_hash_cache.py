@@ -1,11 +1,17 @@
 # Test out the hash cache generator
-
 from adl_func_backend.xAODlib.exe_atlas_xaod_hash_cache import use_executor_xaod_hash_cache, CacheExeException
 from adl_func_client.event_dataset import EventDataset
-
+import pytest
 import tempfile
 import ast
 import os
+import shutil
+
+@pytest.fixture
+def local_cache_dir():
+    with tempfile.TemporaryDirectory() as local_run_dir:
+        cache_dir = os.path.join(local_run_dir, 'cache')
+        yield cache_dir
 
 def build_ast() -> ast.AST:
     return EventDataset("file://root.root") \
@@ -26,41 +32,37 @@ def build_ast_pandas() -> ast.AST:
         .AsPandasDF('JetPt') \
         .value(executor=lambda a: a)
 
-def test_no_cache_ever():
+def test_no_cache_ever(local_cache_dir):
     # Item hasn't been cached before.
-    with tempfile.TemporaryDirectory() as local_run_dir:
-        r = use_executor_xaod_hash_cache(build_ast(), local_run_dir)
-        assert r is not None
-        assert len(r.filelist) == 1
-        assert r.filelist[0] == 'file:///root.root'
-        assert os.path.exists(f'{local_run_dir}/{r.hash}/{r.main_script}')
-        assert r.treename.startswith('forkme')
-        # Because it isn't easy to change this in the ATLAS framework
-        assert r.output_filename == 'ANALYSIS.root'
+    r = use_executor_xaod_hash_cache(build_ast(), local_cache_dir)
+    assert r is not None
+    assert len(r.filelist) == 1
+    assert r.filelist[0] == 'file:///root.root'
+    assert os.path.exists(f'{local_cache_dir}/{r.hash}/{r.main_script}')
+    assert r.treename.startswith('forkme')
+    # Because it isn't easy to change this in the ATLAS framework
+    assert r.output_filename == 'ANALYSIS.root'
 
-def test_deltaR():
+def test_deltaR(local_cache_dir):
     'Make sure there is no exception when doing a deltaR'
-    with tempfile.TemporaryDirectory() as local_run_dir:
-        r = use_executor_xaod_hash_cache(build_ast_dr(), local_run_dir)
+    use_executor_xaod_hash_cache(build_ast_dr(), local_cache_dir)
 
 
-def test_cant_cache_non_root():
+def test_cant_cache_non_root(local_cache_dir):
     try:
-        with tempfile.TemporaryDirectory() as local_run_dir:
-            use_executor_xaod_hash_cache(build_ast_pandas(), local_run_dir)
-            assert False
+        use_executor_xaod_hash_cache(build_ast_pandas(), local_cache_dir)
+        assert False
     except CacheExeException:
         pass
 
-def test_twice():
+def test_twice(local_cache_dir):
     # Item hasn't been cached before.
-    with tempfile.TemporaryDirectory() as local_run_dir:
-        _ = use_executor_xaod_hash_cache(build_ast(), local_run_dir)
-        r = use_executor_xaod_hash_cache(build_ast(), local_run_dir)
-        assert r is not None
-        assert len(r.filelist) == 1
-        assert r.filelist[0] == 'file:///root.root'
-        assert os.path.exists(f'{local_run_dir}/{r.hash}/{r.main_script}')
-        assert r.treename.startswith('forkme')
-        # Because it isn't easy to change this in the ATLAS framework
-        assert r.output_filename == 'ANALYSIS.root'
+    _ = use_executor_xaod_hash_cache(build_ast(), local_cache_dir)
+    r = use_executor_xaod_hash_cache(build_ast(), local_cache_dir)
+    assert r is not None
+    assert len(r.filelist) == 1
+    assert r.filelist[0] == 'file:///root.root'
+    assert os.path.exists(f'{local_cache_dir}/{r.hash}/{r.main_script}')
+    assert r.treename.startswith('forkme')
+    # Because it isn't easy to change this in the ATLAS framework
+    assert r.output_filename == 'ANALYSIS.root'

@@ -49,7 +49,7 @@ def use_executor_xaod_hash_cache(a: ast.AST, cache_path: str) -> HashXAODExecuto
 
     # Create the files to run in that location.
     if not os.path.exists(query_file_path):
-        os.mkdir(query_file_path)
+        os.makedirs(query_file_path)
     exe = atlas_xaod_executor()
     f_spec = exe.write_cpp_files(exe.apply_ast_transformations(a), query_file_path)
 
